@@ -138,19 +138,19 @@
     const r = rs.find((x) => x.name === name) || rs[0];
     state.round = r.name;
     $("rounds").replaceChildren(...rs.map((x) => el("button", {
-      class: "tab", type: "button", role: "tab", "aria-selected": String(x.name === r.name), onclick: () => pickRound(x.name),
-    }, el("span", { class: "dot" + (x.items.length ? " ready" : ""), "aria-hidden": "true" }), x.name)));
+      class: "tab" + (x.items.length ? "" : " is-waiting"), type: "button", role: "tab", "aria-selected": String(x.name === r.name), onclick: () => pickRound(x.name),
+      title: x.items.length ? "" : (x.status === "building" ? "being built now" : "queued"),
+    }, x.name)));
     const ready = r.items.length > 0;
-    const label = ready ? "Ready to look at" : r.status === "building" ? "Being built now" : "Queued";
+    const label = ready ? "" : r.status === "building" ? "being built now" : "queued";
     const changes = r.changes || [];
     const notes = el("details", { class: "changes-wrap", open: store.get("notes") === "open" ? true : false },
-      el("summary", {}, `What changed in ${r.name}`, el("span", { class: "muted" }, ` · ${changes.length}`)),
+      el("summary", {}, `what changed`, el("span", { class: "muted" }, ` · ${changes.length}`)),
       el("ul", { class: "changes" }, changes.map((c) => el("li", {}, c))));
     notes.addEventListener("toggle", () => store.set("notes", notes.open ? "open" : ""));
     $("round-info").replaceChildren(
-      el("div", { class: "meta" },
-        el("span", { class: "status" + (ready ? " ready" : "") }, label),
-        r.summary ? el("p", { class: "summary" }, r.summary) : null),
+      el("div", { class: "meta" }, el("h2", {}, r.name), label ? el("span", { class: "status" }, label) : null),
+      r.summary ? el("p", { class: "summary" }, r.summary) : null,
       changes.length ? notes : null,
     );
     document.querySelector(".work").hidden = false;
@@ -193,7 +193,11 @@
       catch (err) { $("frame-box").replaceChildren(el("div", { class: "pending" }, err.message)); return; }
     }
     if (state.item !== item) return;
-    $("item-note").textContent = d.note ? `What changed in v${d.version}: ${d.note}` : "";
+    // The version note earns its line only when there is more than one version and it says something the
+    // round's summary doesn't already say (a v1 note usually repeats the round summary).
+    const round = rounds(state.project).find((x) => x.name === state.round) || {};
+    const fresh = d.note && (round.summary || "").trim().toLowerCase().replace(/[.\s]+$/, "") !== d.note.trim().toLowerCase().replace(/[.\s]+$/, "");
+    $("item-note").textContent = fresh && item.versions.length > 1 ? `what changed in v${d.version}: ${d.note}` : "";
     const frame = el("iframe", { id: "frame", title: `${item.round} ${item.part}`, sandbox: "allow-scripts" });
     frame.srcdoc = d.content;
     $("frame-box").replaceChildren(frame);
@@ -207,7 +211,7 @@
     const mine = item.selects.find((s) => s.name === me);
     const btn = $("select-btn");
     btn.setAttribute("aria-pressed", String(!!mine));
-    btn.textContent = mine ? "★ My select (take back)" : "☆ Make this my select";
+    btn.textContent = mine ? "★ Your select · take it back" : "☆ Make this my select";
     if (document.activeElement !== $("select-note")) $("select-note").value = mine ? (mine.note || "") : "";
     $("select-list").textContent = item.selects.length
       ? "Selects: " + item.selects.map((s) => s.name + (s.note ? ` ("${s.note}")` : "") + (s.draft_version !== item.version ? ` on v${s.draft_version}` : "")).join(", ")
@@ -376,7 +380,7 @@
     if (state.item) {
       const on = state.cf.includes(state.item.slug);
       add.setAttribute("aria-pressed", String(on));
-      add.textContent = on ? "✓ In the carrierfile" : "＋ Carrierfile";
+      add.textContent = on ? "✓ in the carrierfile" : "＋ carrierfile";
     }
   }
   $("cf-add").addEventListener("click", () => {

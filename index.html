@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Carrierfile Review Table</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=EB+Garamond:ital,wght@0,500;1,500&family=Inter:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261102j">
+<link rel="stylesheet" href="style.css?v=20261102n">
 </head>
 <body>
 <div class="wrap">
@@ -31,7 +31,8 @@
     </form>
   </section>
 
-  <div id="room" class="table-surface" hidden>
+  <div id="room" hidden>
+    <section class="client-card">
     <div class="band" aria-hidden="true"></div>
     <nav class="tabs" id="projects" aria-label="Projects" hidden></nav>
     <header class="intro">
@@ -48,35 +49,34 @@
         <div class="arc" id="p-cards"></div>
       </div>
     </section>
-
-    <section class="drafts" aria-label="Drafts">
-      <div class="drafts-head">
-        <h2 class="section-label">Drafts</h2>
-        <nav class="tabs" role="tablist" aria-label="Drafts" id="rounds"></nav>
-      </div>
-      <section class="round" id="round-info"></section>
     </section>
 
-    <div class="work-head">
-      <div class="bar">
-        <nav class="parts" role="tablist" aria-label="Pieces" id="parts"></nav>
-        <label class="version" id="version-wrap">Version <select id="version"></select></label>
+    <section class="draft-sheet sheet" aria-label="Drafts">
+      <div class="drafts-head">
+        <section class="round" id="round-info"></section>
+        <nav class="tabs" role="tablist" aria-label="Drafts" id="rounds"></nav>
       </div>
-      <div class="selectbar">
-        <button type="button" class="sel" id="select-btn" aria-pressed="false">☆ Make this my select</button>
-        <input type="text" id="select-note" maxlength="200" placeholder="why, or which opening (optional)">
-        <span class="muted small" id="select-list"></span>
-        <button type="button" class="cf-add" id="cf-add" aria-pressed="false" title="Put this item in the carrierfile you take to a model">＋ Carrierfile</button>
+      <div class="work-head">
+        <div class="bar">
+          <nav class="parts" role="tablist" aria-label="Pieces" id="parts"></nav>
+          <label class="version" id="version-wrap">version <select id="version"></select></label>
+        </div>
+        <div class="selectbar">
+          <button type="button" class="sel" id="select-btn" aria-pressed="false">☆ Make this my select</button>
+          <input type="text" id="select-note" maxlength="200" placeholder="why, or which opening (optional)">
+          <span class="muted small" id="select-list"></span>
+          <button type="button" class="cf-add" id="cf-add" aria-pressed="false" title="Put this item in the carrierfile you take to a model">＋ Carrierfile</button>
+        </div>
+        <p class="muted small" id="item-note"></p>
       </div>
-      <p class="muted small" id="item-note"></p>
-    </div>
+    </section>
 
     <div class="work">
-      <section class="viewer">
+      <section class="viewer sheet">
         <div class="frame" id="frame-box"><iframe id="frame" title="Draft" sandbox="allow-scripts"></iframe></div>
       </section>
 
-      <aside class="comments" aria-label="Comments">
+      <aside class="comments sheet" aria-label="Comments">
         <h2>Comments <span class="muted small" id="comments-on"></span></h2>
         <form id="comment-form" class="card">
           <p class="muted small" id="reply-to" hidden></p>
@@ -92,7 +92,7 @@
       </aside>
     </div>
 
-    <section class="reference" id="reference" aria-labelledby="ref-title">
+    <section class="reference sheet" id="reference" aria-labelledby="ref-title">
       <div class="ref-head">
         <h2 id="ref-title">Reference</h2>
         <span class="muted small" id="ref-count"></span>
@@ -109,7 +109,7 @@
       <div class="ref-grid" id="ref-grid"></div>
     </section>
 
-    <section class="ask" id="p-asks" hidden><h2>What we'd love your eyes on</h2><ul></ul></section>
+    <section class="ask sheet" id="p-asks" hidden><h2>What we'd love your eyes on</h2><ul></ul></section>
     <p class="foot" id="p-foot"></p>
   </div>
   <p id="empty" class="muted center" hidden>Nothing is on the table yet.</p>
@@ -144,6 +144,6 @@
   </section>
 </dialog>
 <script src="config.js"></script>
-<script src="app.js?v=20261102j"></script>
+<script src="app.js?v=20261102n"></script>
 </body>
 </html>
