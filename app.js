@@ -113,7 +113,7 @@
   function pickProject(slug, wantItem) {
     const p = state.projects.find((x) => x.slug === slug);
     state.project = p;
-    cfLoad(); renderCfButton(); loadReference();
+    cfLoad(); renderCfButton(); loadReference(); refreshAttachPicker();
     const tabs = $("projects");
     tabs.hidden = state.projects.length < 2;
     tabs.replaceChildren(...state.projects.map((x) => el("button", { class: "tab", type: "button", "aria-selected": String(x.slug === slug), onclick: () => pickProject(x.slug) }, x.title)));
@@ -181,6 +181,7 @@
     try { history.replaceState(null, "", "#" + slug); } catch (e) { /* file preview */ }
     renderSelects();
     renderCfButton();
+    $("ref-attach").replaceChildren(...draftOptions(slug));
     $("comments-on").textContent = `on ${item.round} ${item.part}`;
     setReply(null);
     loadComments();
@@ -376,6 +377,21 @@
     return i ? `${i.round} · ${i.part}` : slug;
   }
   let refAssets = [];
+  function draftOptions(selected) {
+    const opts = [el("option", { value: "", selected: !selected }, "the whole project")];
+    for (const r of rounds(state.project)) for (const i of r.items) opts.push(el("option", { value: i.slug, selected: i.slug === selected }, `${i.round} · ${i.part}`));
+    return opts;
+  }
+  function refreshAttachPicker() {
+    const sel = $("ref-attach");
+    const keep = sel.value || (state.item ? state.item.slug : "");
+    sel.replaceChildren(...draftOptions(keep));
+  }
+  async function attachAsset(id, slug) {
+    await api("/assets/attach", { method: "POST", body: { id, draft_slug: slug || null } });
+    const a = refAssets.find((x) => x.id === id); if (a) a.draft_slug = slug || null;
+    renderReference();
+  }
   async function loadReference() {
     if (!state.project) return;
     try {
@@ -393,7 +409,8 @@
       el("div", { class: "meta" },
         el("b", {}, a.filename),
         el("span", {}, `${a.name} · ${when(a.created_at)} · ${Math.max(1, Math.round(a.bytes / 1024))} KB`),
-        a.draft_slug ? el("span", {}, `on ${itemLabel(a.draft_slug)}${a.comment_id ? " · with a comment" : ""}`) : null,
+        el("label", { class: "ref-on" }, "on ", el("select", { onchange: (e) => attachAsset(a.id, e.target.value).catch((err) => { $("ref-msg").textContent = err.message; }) }, ...draftOptions(a.draft_slug || ""))),
+        a.comment_id ? el("span", {}, "with a comment") : null,
         a.origin === "return" ? el("span", {}, "came back with a carrierfile") : null,
         a.note ? el("span", {}, a.note) : null,
         a.url ? el("a", { href: a.url, download: a.filename, target: "_blank", rel: "noreferrer" }, "download") : null)))
@@ -407,7 +424,7 @@
     for (const f of files) {
       msg.textContent = `Uploading ${f.name}…`;
       try {
-        const r = await uploadAsset(f, { note, draft_slug: $("ref-this-item").checked && state.item ? state.item.slug : undefined });
+        const r = await uploadAsset(f, { note, draft_slug: $("ref-attach").value || undefined });
         done += 1; if (r.held) held += 1;
       } catch (err) { msg.textContent = `${f.name}: ${err.message}`; await new Promise((r) => setTimeout(r, 1800)); }
     }
