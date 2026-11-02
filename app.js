@@ -80,7 +80,7 @@
   // ---------- room ----------
   function showTable() {
     const t = store.get("table");
-    $("table-name").textContent = t ? " · " + t : "";
+    $("table-name").textContent = t || "";
     document.title = t ? `${t} · Carrierfile Review Table` : "Carrierfile Review Table";
   }
 
