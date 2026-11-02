@@ -17,6 +17,7 @@
       <span>Commenting as <b id="me-name"></b></span>
       <button type="button" class="link" id="change-name">change name</button>
       <button type="button" class="link" id="sign-out">sign out</button>
+      <button type="button" class="cf-btn" id="cf-open" aria-haspopup="dialog">Carrierfile <span id="cf-count" class="cf-count" hidden>0</span></button>
     </div>
   </header>
 
@@ -35,12 +36,26 @@
     <nav class="tabs" id="projects" aria-label="Projects" hidden></nav>
     <header class="intro">
       <h1 id="p-title"></h1>
-      <p class="lede" id="p-lede"></p>
     </header>
-    <section class="arc" id="p-cards" aria-label="Direction"></section>
 
-    <nav class="tabs" role="tablist" aria-label="Drafts" id="rounds"></nav>
-    <section class="round" id="round-info"></section>
+    <section class="direction" id="direction" aria-labelledby="direction-title">
+      <div class="direction-head">
+        <h2 id="direction-title">Direction</h2>
+        <button type="button" class="link small" id="direction-toggle" aria-expanded="true" aria-controls="direction-body">hide</button>
+      </div>
+      <div id="direction-body">
+        <p class="lede" id="p-lede"></p>
+        <div class="arc" id="p-cards"></div>
+      </div>
+    </section>
+
+    <section class="drafts" aria-label="Drafts">
+      <div class="drafts-head">
+        <h2 class="section-label">Drafts</h2>
+        <nav class="tabs" role="tablist" aria-label="Drafts" id="rounds"></nav>
+      </div>
+      <section class="round" id="round-info"></section>
+    </section>
 
     <div class="work">
       <section class="viewer">
@@ -52,6 +67,7 @@
           <button type="button" class="sel" id="select-btn" aria-pressed="false">☆ Make this my select</button>
           <input type="text" id="select-note" maxlength="200" placeholder="why, or which opening (optional)">
           <span class="muted small" id="select-list"></span>
+          <button type="button" class="cf-add" id="cf-add" aria-pressed="false" title="Put this item in the carrierfile you take to a model">＋ Carrierfile</button>
         </div>
         <p class="muted small" id="item-note"></p>
         <div class="frame" id="frame-box"><iframe id="frame" title="Draft" sandbox="allow-scripts"></iframe></div>
@@ -76,6 +92,33 @@
   </div>
   <p id="empty" class="muted center" hidden>Nothing is on the table yet.</p>
 </div>
+<dialog id="cf-dialog" class="cf-dialog" aria-labelledby="cf-title">
+  <form method="dialog" class="cf-head"><h2 id="cf-title">Project carrierfile</h2><button type="submit" class="link">close</button></form>
+  <p class="muted small">A carrierfile is one text file that carries this project to any AI model: the direction, where it stands, the open questions, and the items you picked with their text, selects and comments. Paste it into a new conversation and type <b>unpack</b>. When you have new work, tell the model to <b>pack up</b>, save what it gives you, and send it back here.</p>
+  <section>
+    <h3>Items in this carrierfile <span class="muted small" id="cf-n"></span></h3>
+    <ul id="cf-items" class="cf-items"></ul>
+    <label class="cf-check"><input type="checkbox" id="cf-comments" checked> include the comments and selects</label>
+    <div class="cf-actions">
+      <button type="button" class="primary" id="cf-copy">Copy to clipboard</button>
+      <button type="button" class="cf-btn" id="cf-download">Download .md</button>
+      <button type="button" class="link small" id="cf-clear">clear the list</button>
+      <span class="small" id="cf-msg" role="status"></span>
+    </div>
+  </section>
+  <section class="cf-return">
+    <h3>Send one back</h3>
+    <p class="muted small">Upload the carrierfile the model gave you after <b>pack up</b> (a .md or .txt file, or paste the text). It is scanned before anyone sees it: files that try to instruct the model or carry code are held or refused. The castle reads what comes back and makes the next draft from it.</p>
+    <form id="cf-return-form" class="cf-form">
+      <label>File <input type="file" id="cf-file" accept=".md,.txt,.markdown,text/plain,text/markdown"></label>
+      <label>Or paste it <textarea id="cf-paste" rows="4" placeholder="CARRIERFILE/1.0 · PROJECT …"></textarea></label>
+      <label>A note for the castle <span class="muted">(optional)</span> <input type="text" id="cf-note" maxlength="400" placeholder="what you changed, in a line"></label>
+      <div class="cf-actions"><button type="submit" class="primary">Send it back</button><span class="small" id="cf-return-msg" role="status"></span></div>
+    </form>
+    <h3 class="cf-sub">Sent back so far <span class="muted small" id="cf-returns-n"></span></h3>
+    <ul id="cf-returns" class="cf-items"></ul>
+  </section>
+</dialog>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>

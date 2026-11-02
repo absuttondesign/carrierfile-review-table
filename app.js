@@ -12,7 +12,7 @@
     get(k) { try { return localStorage.getItem("rr." + k) || ""; } catch (e) { return ""; } },
     set(k, v) { try { v ? localStorage.setItem("rr." + k, v) : localStorage.removeItem("rr." + k); } catch (e) { /* private window */ } },
   };
-  let state = { projects: [], project: null, round: null, item: null, version: null, replyTo: null, table: null };
+  let state = { projects: [], project: null, round: null, item: null, version: null, replyTo: null, table: null, cf: [] };
   const wantTable = (new URLSearchParams(location.search).get("t") || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 61);
   const contentCache = new Map();
 
@@ -63,6 +63,15 @@
     finally { btn.disabled = false; }
   });
   $("sign-out").addEventListener("click", () => showGate("Signed out."));
+  // The Direction block folds away once you know it; the choice is remembered on this browser.
+  function setDirection(open) {
+    $("direction-body").hidden = !open;
+    $("direction-toggle").textContent = open ? "hide" : "show";
+    $("direction-toggle").setAttribute("aria-expanded", String(open));
+    store.set("direction", open ? "" : "closed");
+  }
+  $("direction-toggle").addEventListener("click", () => setDirection($("direction-body").hidden));
+  setDirection(store.get("direction") !== "closed");
   $("change-name").addEventListener("click", () => {
     const n = (prompt("Name on your comments:", store.get("name")) || "").trim().slice(0, 60);
     if (n) { store.set("name", n); $("me-name").textContent = n; renderSelects(); }
@@ -104,13 +113,16 @@
   function pickProject(slug, wantItem) {
     const p = state.projects.find((x) => x.slug === slug);
     state.project = p;
+    cfLoad(); renderCfButton();
     const tabs = $("projects");
     tabs.hidden = state.projects.length < 2;
     tabs.replaceChildren(...state.projects.map((x) => el("button", { class: "tab", type: "button", "aria-selected": String(x.slug === slug), onclick: () => pickProject(x.slug) }, x.title)));
     const info = p.info || {};
     $("p-title").textContent = p.title;
     $("p-lede").textContent = info.lede || "";
+    $("p-lede").hidden = !info.lede;
     $("p-cards").replaceChildren(...(info.cards || []).map((c) => el("div", {}, el("b", {}, c.label), c.text)));
+    $("direction").hidden = !info.lede && !(info.cards || []).length;
     const asks = info.asks || [];
     $("p-asks").hidden = !asks.length;
     $("p-asks").querySelector("ul").replaceChildren(...asks.map((a) => el("li", {}, a)));
@@ -130,10 +142,16 @@
     }, el("span", { class: "dot" + (x.items.length ? " ready" : ""), "aria-hidden": "true" }), x.name)));
     const ready = r.items.length > 0;
     const label = ready ? "Ready to look at" : r.status === "building" ? "Being built now" : "Queued";
+    const changes = r.changes || [];
+    const notes = el("details", { class: "changes-wrap", open: store.get("notes") === "open" ? true : false },
+      el("summary", {}, `What changed in ${r.name}`, el("span", { class: "muted" }, ` · ${changes.length}`)),
+      el("ul", { class: "changes" }, changes.map((c) => el("li", {}, c))));
+    notes.addEventListener("toggle", () => store.set("notes", notes.open ? "open" : ""));
     $("round-info").replaceChildren(
-      el("div", { class: "meta" }, el("h2", {}, r.name), el("span", { class: "status" + (ready ? " ready" : "") }, label)),
-      r.summary ? el("p", {}, r.summary) : null,
-      (r.changes || []).length ? el("ul", { class: "changes" }, r.changes.map((c) => el("li", {}, c))) : null,
+      el("div", { class: "meta" },
+        el("span", { class: "status" + (ready ? " ready" : "") }, label),
+        r.summary ? el("p", { class: "summary" }, r.summary) : null),
+      changes.length ? notes : null,
     );
     document.querySelector(".work").hidden = false;
     if (!ready) {
@@ -161,6 +179,7 @@
     document.querySelector(".selectbar").hidden = false;
     try { history.replaceState(null, "", "#" + slug); } catch (e) { /* file preview */ }
     renderSelects();
+    renderCfButton();
     $("comments-on").textContent = `on ${item.round} ${item.part}`;
     setReply(null);
     loadComments();
@@ -250,6 +269,105 @@
       $("body").value = ""; $("where").value = ""; setReply(null);
       await loadComments();
     } catch (err) { $("comment-error").textContent = err.message; }
+    finally { btn.disabled = false; }
+  });
+
+  // ---------- the project carrierfile ----------
+  // Picked items are remembered per project on this browser. The file itself comes from the server, which
+  // only includes published items on this table; the browser never assembles it from the drafts.
+  function cfKey() { return "cf." + (state.project ? state.project.slug : ""); }
+  function cfLoad() { try { state.cf = JSON.parse(store.get(cfKey()) || "[]"); } catch (e) { state.cf = []; } }
+  function cfSave() { store.set(cfKey(), state.cf.length ? JSON.stringify(state.cf) : ""); renderCfButton(); }
+  function cfItems() { return state.cf.map((s) => state.project.items.find((i) => i.slug === s)).filter(Boolean); }
+  function renderCfButton() {
+    const n = state.project ? cfItems().length : 0;
+    $("cf-count").hidden = !n; $("cf-count").textContent = n;
+    const add = $("cf-add");
+    if (state.item) {
+      const on = state.cf.includes(state.item.slug);
+      add.setAttribute("aria-pressed", String(on));
+      add.textContent = on ? "✓ In the carrierfile" : "＋ Carrierfile";
+    }
+  }
+  $("cf-add").addEventListener("click", () => {
+    if (!state.item) return;
+    const slug = state.item.slug;
+    state.cf = state.cf.includes(slug) ? state.cf.filter((s) => s !== slug) : [...state.cf, slug];
+    cfSave();
+  });
+  function renderCfDialog() {
+    const items = cfItems();
+    $("cf-n").textContent = items.length ? `· ${items.length}` : "";
+    $("cf-items").replaceChildren(...(items.length ? items.map((i) => el("li", {},
+      el("span", {}, `${i.round} · ${i.part}`, " ", el("span", { class: "meta" }, `v${i.version}`)),
+      el("button", { type: "button", class: "link small", onclick: () => { state.cf = state.cf.filter((s) => s !== i.slug); cfSave(); renderCfDialog(); } }, "remove")))
+      : [el("li", { class: "muted" }, "Nothing picked yet. Press “＋ Carrierfile” on any item.")]));
+    $("cf-copy").disabled = $("cf-download").disabled = !items.length;
+    $("cf-msg").textContent = "";
+  }
+  async function cfFetch() {
+    const q = `slugs=${encodeURIComponent(state.cf.join(","))}&comments=${$("cf-comments").checked ? 1 : 0}&name=${encodeURIComponent(store.get("name"))}`;
+    const res = await fetch(`${API}/carrierfile.md?${q}`, { headers: { authorization: "Bearer " + store.get("token") } });
+    if (res.status === 401) { $("cf-dialog").close(); showGate("Please sign in again."); throw new Error("signed out"); }
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Could not make the carrierfile.");
+    return res.text();
+  }
+  function cfFilename() {
+    const d = new Date().toISOString().slice(0, 10);
+    return `${state.project.slug}-carrierfile-${d}.md`;
+  }
+  $("cf-open").addEventListener("click", () => { if (!state.project) return; renderCfDialog(); loadReturns(); $("cf-dialog").showModal(); });
+  $("cf-copy").addEventListener("click", async () => {
+    $("cf-msg").textContent = "Making it…";
+    try { await navigator.clipboard.writeText(await cfFetch()); $("cf-msg").textContent = "Copied. Paste it into a new conversation and type “unpack”."; }
+    catch (err) { $("cf-msg").textContent = err.message; }
+  });
+  $("cf-download").addEventListener("click", async () => {
+    $("cf-msg").textContent = "Making it…";
+    try {
+      const blob = new Blob([await cfFetch()], { type: "text/markdown" });
+      const a = el("a", { href: URL.createObjectURL(blob), download: cfFilename() }); document.body.append(a); a.click(); a.remove();
+      $("cf-msg").textContent = `Saved as ${cfFilename()}.`;
+    } catch (err) { $("cf-msg").textContent = err.message; }
+  });
+  $("cf-clear").addEventListener("click", () => { state.cf = []; cfSave(); renderCfDialog(); });
+
+  // sending a worked carrierfile back
+  async function loadReturns() {
+    try {
+      const { returns } = await api(`/returns?project=${encodeURIComponent(state.project.slug)}`);
+      $("cf-returns-n").textContent = returns.length ? `· ${returns.length}` : "";
+      $("cf-returns").replaceChildren(...(returns.length ? returns.map((r) => el("li", {},
+        el("span", {}, el("span", { class: "who" }, r.name), " ", el("span", { class: "meta" }, `${when(r.created_at)} · ${r.filename}${r.note ? " · " + r.note : ""}`)),
+        el("button", { type: "button", class: "link small", onclick: () => downloadReturn(r) }, "download")))
+        : [el("li", { class: "muted" }, "Nothing sent back yet.")]));
+    } catch (err) { $("cf-returns").replaceChildren(el("li", { class: "error" }, err.message)); }
+  }
+  async function downloadReturn(r) {
+    const { returns } = await api(`/returns?project=${encodeURIComponent(state.project.slug)}&full=1`);
+    const full = returns.find((x) => x.id === r.id); if (!full) return;
+    const a = el("a", { href: URL.createObjectURL(new Blob([full.content], { type: "text/markdown" })), download: full.filename }); document.body.append(a); a.click(); a.remove();
+  }
+  $("cf-return-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = $("cf-return-msg"), btn = e.submitter || $("cf-return-form").querySelector("button[type=submit]");
+    const file = $("cf-file").files[0];
+    let content = $("cf-paste").value, filename = `returned-${cfFilename()}`;
+    try {
+      if (file) {
+        if (file.size > 2_000_000) throw new Error("That file is over 2 MB. Send the text, not images.");
+        content = await file.text(); filename = file.name;
+      }
+      if (!content.trim()) throw new Error("Pick a file or paste the text first.");
+      btn.disabled = true; msg.textContent = "Scanning and sending…";
+      const r = await api("/returns", { method: "POST", body: { project: state.project.slug, name: store.get("name"), note: $("cf-note").value, filename, content } });
+      $("cf-file").value = ""; $("cf-paste").value = ""; $("cf-note").value = "";
+      msg.textContent = r.held
+        ? "Received, and held for the castle to look at first: " + (r.scan.flags || []).join("; ") + "."
+        : "Received. The castle will read it and work from it.";
+      state.project.returns = (state.project.returns || 0) + 1;
+      loadReturns();
+    } catch (err) { msg.textContent = err.message; }
     finally { btn.disabled = false; }
   });
 
