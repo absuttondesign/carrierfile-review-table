@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Carrierfile Review Table</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="band" aria-hidden="true"></div>
+  <header class="top">
+    <span class="mark">Carrierfile Review Table</span>
+    <div class="me" id="me" hidden>
+      <span>Commenting as <b id="me-name"></b></span>
+      <button type="button" class="link" id="change-name">change name</button>
+      <button type="button" class="link" id="sign-out">sign out</button>
+    </div>
+  </header>
+
+  <section id="gate" class="gate" hidden>
+    <form id="gate-form" class="card">
+      <h2>Come on in</h2>
+      <p class="muted">Type the password you were sent and the name you'd like on your comments. No email, no account.</p>
+      <label>Password <input type="password" id="gate-password" autocomplete="current-password" required></label>
+      <label>Your name <input type="text" id="gate-name" maxlength="60" autocomplete="given-name" required></label>
+      <button type="submit" class="primary">Open the table</button>
+      <p class="error" id="gate-error" role="alert"></p>
+    </form>
+  </section>
+
+  <div id="room" hidden>
+    <nav class="tabs" id="projects" aria-label="Projects" hidden></nav>
+    <header class="intro">
+      <h1 id="p-title"></h1>
+      <p class="lede" id="p-lede"></p>
+    </header>
+    <section class="arc" id="p-cards" aria-label="Direction"></section>
+
+    <nav class="tabs" role="tablist" aria-label="Drafts" id="rounds"></nav>
+    <section class="round" id="round-info"></section>
+
+    <div class="work">
+      <section class="viewer">
+        <div class="bar">
+          <nav class="parts" role="tablist" aria-label="Pieces" id="parts"></nav>
+          <label class="version" id="version-wrap">Version <select id="version"></select></label>
+        </div>
+        <div class="selectbar">
+          <button type="button" class="sel" id="select-btn" aria-pressed="false">☆ Make this my select</button>
+          <input type="text" id="select-note" maxlength="200" placeholder="why, or which opening (optional)">
+          <span class="muted small" id="select-list"></span>
+        </div>
+        <p class="muted small" id="item-note"></p>
+        <div class="frame" id="frame-box"><iframe id="frame" title="Draft" sandbox="allow-scripts"></iframe></div>
+      </section>
+
+      <aside class="comments" aria-label="Comments">
+        <h2>Comments <span class="muted small" id="comments-on"></span></h2>
+        <form id="comment-form" class="card">
+          <p class="muted small" id="reply-to" hidden></p>
+          <label>Where <span class="muted">(optional: a time like 0:36, or a section)</span>
+            <input type="text" id="where" maxlength="80"></label>
+          <label>Comment <textarea id="body" rows="4" maxlength="4000" required></textarea></label>
+          <button type="submit" class="primary">Post</button>
+          <p class="error" id="comment-error" role="alert"></p>
+        </form>
+        <ol id="comment-list" class="thread"></ol>
+      </aside>
+    </div>
+
+    <section class="ask" id="p-asks" hidden><h2>What we'd love your eyes on</h2><ul></ul></section>
+    <p class="foot" id="p-foot"></p>
+  </div>
+  <p id="empty" class="muted center" hidden>Nothing is on the table yet.</p>
+</div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
