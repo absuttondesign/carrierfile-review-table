@@ -430,7 +430,7 @@
     const onlyThis = $("ref-this-item").checked && state.item;
     const list = onlyThis ? refAssets.filter((a) => (a.draft_slugs || []).includes(state.item.slug)) : refAssets;
     $("ref-count").textContent = refAssets.length ? `· ${list.length}${onlyThis ? ` of ${refAssets.length}` : ""} file${refAssets.length === 1 ? "" : "s"}` : "· nothing here yet";
-    $("ref-grid").replaceChildren(...(list.length ? list.map((a) => el("div", { class: "ref-card" },
+    $("ref-grid").replaceChildren(...(list.length ? list.map((a) => el("div", { class: "ref-card", "data-id": a.id },
       assetThumb(a),
       el("div", { class: "meta" },
         el("b", {}, a.filename),
