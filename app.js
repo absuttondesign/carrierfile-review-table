@@ -181,7 +181,7 @@
     try { history.replaceState(null, "", "#" + slug); } catch (e) { /* file preview */ }
     renderSelects();
     renderCfButton();
-    $("ref-attach").replaceChildren(...draftOptions(slug));
+    dropTags = [slug]; refreshAttachPicker();
     $("comments-on").textContent = `on ${item.round} ${item.part}`;
     setReply(null);
     loadComments();
@@ -355,10 +355,13 @@
     const name = store.get("name");
     const begin = await api("/assets/begin", { method: "POST", body: {
       project: state.project.slug, name, filename: file.name, mime: file.type || "application/octet-stream", bytes: file.size,
-      draft_slug: opts.draft_slug || undefined, note: opts.note || undefined, origin: opts.origin || undefined,
+      draft_slugs: opts.draft_slugs || (opts.draft_slug ? [opts.draft_slug] : []), note: opts.note || undefined, origin: opts.origin || undefined,
     } });
-    const put = await fetch(begin.upload_url, { method: "PUT", headers: { "content-type": file.type || "application/octet-stream", "x-upsert": "false" }, body: file });
-    if (!put.ok) throw new Error(`Upload of ${file.name} failed (${put.status}).`);
+    let put;
+    try {
+      put = await fetch(begin.upload_url, { method: "PUT", headers: { "content-type": file.type || "application/octet-stream" }, body: file });
+    } catch (err) { throw new Error(`The file could not be sent to storage (${err.message}). Try again, or a smaller file.`); }
+    if (!put.ok) throw new Error(`Storage refused the file (${put.status}: ${(await put.text().catch(() => "")).slice(0, 120)}).`);
     return api("/assets/done", { method: "POST", body: { id: begin.id, name } });
   }
   function kindIcon(kind, filename) {
@@ -377,15 +380,31 @@
     return i ? `${i.round} · ${i.part}` : slug;
   }
   let refAssets = [];
-  function draftOptions(selected) {
-    const opts = [el("option", { value: "", selected: !selected }, "the whole project")];
-    for (const r of rounds(state.project)) for (const i of r.items) opts.push(el("option", { value: i.slug, selected: i.slug === selected }, `${i.round} · ${i.part}`));
-    return opts;
+  // A file sits on any number of drafts. The picker shows the chosen ones as chips (× takes one off), offers the
+  // draft on screen as a one-click add, and folds out every draft as a checkbox. No chips = the whole project.
+  function tagPicker(selected, onChange, opts = {}) {
+    const chosen = [...selected];
+    const current = state.item ? state.item.slug : null;
+    const wrap = el("span", { class: "tags" + (opts.compact ? " compact" : "") });
+    const change = (next) => onChange([...new Set(next)]);
+    for (const slug of chosen) wrap.append(el("span", { class: "tag-chip" }, itemLabel(slug),
+      el("button", { type: "button", class: "x", title: "take this draft off", onclick: () => change(chosen.filter((s) => s !== slug)) }, "×")));
+    if (!chosen.length) wrap.append(el("span", { class: "tag-chip whole" }, "whole project"));
+    if (current && !chosen.includes(current)) wrap.append(el("button", { type: "button", class: "tag-add", onclick: () => change([...chosen, current]) }, `＋ ${itemLabel(current)}`));
+    const fold = el("details", { class: "tag-pick" }, el("summary", {}, "＋ draft"));
+    const list = el("div", { class: "tag-list" });
+    for (const r of rounds(state.project)) {
+      if (!r.items.length) continue;
+      list.append(el("b", {}, r.name));
+      for (const i of r.items) list.append(el("label", {}, el("input", { type: "checkbox", checked: chosen.includes(i.slug), onchange: (e) => change(e.target.checked ? [...chosen, i.slug] : chosen.filter((s) => s !== i.slug)) }), i.part));
+    }
+    fold.append(list); wrap.append(fold);
+    return wrap;
   }
+  let dropTags = [];
   function refreshAttachPicker() {
-    const sel = $("ref-attach");
-    const keep = sel.value || (state.item ? state.item.slug : "");
-    sel.replaceChildren(...draftOptions(keep));
+    if (!dropTags.length && state.item) dropTags = [state.item.slug];
+    $("ref-attach").replaceChildren(tagPicker(dropTags, (next) => { dropTags = next; refreshAttachPicker(); }));
   }
   async function removeAsset(a) {
     if (!confirm(`Remove ${a.filename} from the table? The castle keeps a copy.`)) return;
@@ -394,9 +413,9 @@
       refAssets = refAssets.filter((x) => x.id !== a.id); renderReference(); renderCfSheet();
     } catch (err) { $("ref-msg").textContent = err.message; }
   }
-  async function attachAsset(id, slug) {
-    await api("/assets/attach", { method: "POST", body: { id, draft_slug: slug || null } });
-    const a = refAssets.find((x) => x.id === id); if (a) a.draft_slug = slug || null;
+  async function attachAsset(id, slugs) {
+    await api("/assets/attach", { method: "POST", body: { id, draft_slugs: slugs } });
+    const a = refAssets.find((x) => x.id === id); if (a) { a.draft_slugs = slugs; a.draft_slug = slugs[0] || null; }
     renderReference();
   }
   async function loadReference() {
@@ -409,14 +428,14 @@
   }
   function renderReference() {
     const onlyThis = $("ref-this-item").checked && state.item;
-    const list = onlyThis ? refAssets.filter((a) => a.draft_slug === state.item.slug) : refAssets;
+    const list = onlyThis ? refAssets.filter((a) => (a.draft_slugs || []).includes(state.item.slug)) : refAssets;
     $("ref-count").textContent = refAssets.length ? `· ${list.length}${onlyThis ? ` of ${refAssets.length}` : ""} file${refAssets.length === 1 ? "" : "s"}` : "· nothing here yet";
     $("ref-grid").replaceChildren(...(list.length ? list.map((a) => el("div", { class: "ref-card" },
       assetThumb(a),
       el("div", { class: "meta" },
         el("b", {}, a.filename),
         el("span", {}, `${a.name} · ${when(a.created_at)} · ${Math.max(1, Math.round(a.bytes / 1024))} KB`),
-        el("label", { class: "ref-on" }, "on ", el("select", { onchange: (e) => attachAsset(a.id, e.target.value).catch((err) => { $("ref-msg").textContent = err.message; }) }, ...draftOptions(a.draft_slug || ""))),
+        el("span", { class: "ref-on" }, "on ", tagPicker(a.draft_slugs || [], (next) => attachAsset(a.id, next).catch((err) => { $("ref-msg").textContent = err.message; }), { compact: true })),
         a.comment_id ? el("span", {}, "with a comment") : null,
         a.origin === "return" ? el("span", {}, "came back with a carrierfile") : null,
         a.note ? el("span", {}, a.note) : null,
@@ -433,7 +452,7 @@
     for (const f of files) {
       msg.textContent = `Uploading ${f.name}…`;
       try {
-        const r = await uploadAsset(f, { note, draft_slug: $("ref-attach").value || undefined });
+        const r = await uploadAsset(f, { note, draft_slugs: dropTags });
         done += 1; if (r.held) held += 1;
       } catch (err) { msg.textContent = `${f.name}: ${err.message}`; await new Promise((r) => setTimeout(r, 1800)); }
     }
