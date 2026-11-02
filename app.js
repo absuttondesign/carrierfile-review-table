@@ -137,10 +137,11 @@
     const rs = rounds(state.project);
     const r = rs.find((x) => x.name === name) || rs[0];
     state.round = r.name;
-    $("rounds").replaceChildren(...rs.map((x) => el("button", {
+    const starsFor = (sel) => sel.length ? el("span", { class: "stars", title: `select${sel.length === 1 ? "" : "s"}: ${sel.map((s) => s.name).join(", ")}`, "aria-label": `${sel.length} select${sel.length === 1 ? "" : "s"}` }, "★".repeat(Math.min(sel.length, 8))) : null;
+    $("rounds").replaceChildren(...rs.map((x) => el("span", { class: "round-pick" }, el("button", {
       class: "tab" + (x.items.length ? "" : " is-waiting"), type: "button", role: "tab", "aria-selected": String(x.name === r.name), onclick: () => pickRound(x.name),
       title: x.items.length ? "" : (x.status === "building" ? "being built now" : "queued"),
-    }, x.name)));
+    }, x.name), starsFor(x.items.flatMap((i) => i.selects)))));
     const ready = r.items.length > 0;
     const label = ready ? "" : r.status === "building" ? "being built now" : "queued";
     const changes = r.changes || [];
@@ -174,7 +175,8 @@
     state.item = item; state.version = version || item.version; state.replyTo = null;
     $("parts").replaceChildren(...r.items.map((i) => el("button", {
       class: "tab", type: "button", role: "tab", "aria-selected": String(i.slug === slug), onclick: () => pickItem(i.slug),
-    }, i.part)));
+      title: i.selects.length ? `select${i.selects.length === 1 ? "" : "s"}: ${i.selects.map((s) => s.name).join(", ")}` : "",
+    }, i.part, i.selects.length ? el("span", { class: "stars inline", "aria-hidden": "true" }, "★".repeat(Math.min(i.selects.length, 8))) : null)));
     $("version-wrap").hidden = item.versions.length < 2;
     $("version").replaceChildren(...[...item.versions].reverse().map((v) => el("option", { value: v, selected: v === state.version }, `v${v}${v === item.version ? " (latest)" : ""}`)));
     document.querySelector(".selectbar").hidden = false;
@@ -230,6 +232,7 @@
         item.selects = [...item.selects.filter((s) => s.name !== me), r.select];
       }
       renderSelects();
+      pickRound(state.round, item.slug);
     } catch (err) { $("select-list").textContent = err.message; }
     finally { btn.disabled = false; }
   });
