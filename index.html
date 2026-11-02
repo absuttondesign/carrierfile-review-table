@@ -5,14 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Carrierfile Review Table</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261102d">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500;600&family=EB+Garamond:wght@500;600&display=swap">
+<link rel="stylesheet" href="style.css?v=20261102f">
 </head>
 <body>
 <div class="wrap">
-  <div class="band" aria-hidden="true"></div>
-  <header class="top">
-    <span class="mark">Carrierfile Review Table<span id="table-name"></span></span>
+  <header class="top shell">
+    <a class="brand" href="./"><img class="logo" src="carrierfile-logo.svg" alt="Carrierfile" width="663" height="154"><span class="mark">Review Table<span id="table-name"></span></span></a>
     <div class="me" id="me" hidden>
       <span>Commenting as <b id="me-name"></b></span>
       <button type="button" class="link" id="change-name">change name</button>
@@ -32,7 +31,8 @@
     </form>
   </section>
 
-  <div id="room" hidden>
+  <div id="room" class="table-surface" hidden>
+    <div class="band" aria-hidden="true"></div>
     <nav class="tabs" id="projects" aria-label="Projects" hidden></nav>
     <header class="intro">
       <h1 id="p-title"></h1>
@@ -83,6 +83,8 @@
           <label>Where <span class="muted">(optional: a time like 0:36, or a section)</span>
             <input type="text" id="where" maxlength="80"></label>
           <label>Comment <textarea id="body" rows="4" maxlength="4000" required></textarea></label>
+          <label class="attach">Attach a file <span class="muted">(optional: a sketch, a screenshot, a reference)</span>
+            <input type="file" id="comment-files" multiple></label>
           <button type="submit" class="primary">Post</button>
           <p class="error" id="comment-error" role="alert"></p>
         </form>
@@ -90,10 +92,28 @@
       </aside>
     </div>
 
+    <section class="reference" id="reference" aria-labelledby="ref-title">
+      <div class="ref-head">
+        <h2 id="ref-title">Reference</h2>
+        <span class="muted small" id="ref-count"></span>
+        <label class="cf-check"><input type="checkbox" id="ref-this-item"> only this item</label>
+      </div>
+      <p class="muted small">Inspiration, sketches, screenshots, clips, documents: anything that helps the work. Everyone on the table can add. It all goes into the project carrierfile package and comes back with it.</p>
+      <div class="ref-drop" id="ref-drop">
+        <input type="file" id="ref-files" multiple hidden>
+        <button type="button" class="cf-btn" id="ref-pick">Add files</button>
+        <span class="muted small">or drop them here · images, video, audio, PDF, documents, text · 50 MB each</span>
+        <input type="text" id="ref-note" maxlength="400" placeholder="a note on what this is for (optional)">
+        <span class="small" id="ref-msg" role="status"></span>
+      </div>
+      <div class="ref-grid" id="ref-grid"></div>
+    </section>
+
     <section class="ask" id="p-asks" hidden><h2>What we'd love your eyes on</h2><ul></ul></section>
     <p class="foot" id="p-foot"></p>
   </div>
   <p id="empty" class="muted center" hidden>Nothing is on the table yet.</p>
+  <footer class="shell-foot"><span>Carrierfile Review Table</span><span>Comments, selects, reference files and carrierfiles stay with the table. Nothing here is public.</span></footer>
 </div>
 <dialog id="cf-dialog" class="cf-dialog" aria-labelledby="cf-title">
   <form method="dialog" class="cf-head"><h2 id="cf-title">Project carrierfile</h2><button type="submit" class="link">close</button></form>
@@ -105,15 +125,16 @@
     <div class="cf-actions">
       <button type="button" class="primary" id="cf-copy">Copy to clipboard</button>
       <button type="button" class="cf-btn" id="cf-download">Download .md</button>
+      <button type="button" class="cf-btn" id="cf-package" title="The carrierfile plus an assets folder with every reference file">Download the package (.zip)</button>
       <button type="button" class="link small" id="cf-clear">clear the list</button>
       <span class="small" id="cf-msg" role="status"></span>
     </div>
   </section>
   <section class="cf-return">
     <h3>Send one back</h3>
-    <p class="muted small">Upload the carrierfile the model gave you after <b>pack up</b> (a .md or .txt file, or paste the text). It is scanned before anyone sees it: files that try to instruct the model or carry code are held or refused. The castle reads what comes back and makes the next draft from it.</p>
+    <p class="muted small">Upload the carrierfile the model gave you after <b>pack up</b> (a .md or .txt file, or paste the text), or a whole package (.zip: the carrierfile plus an assets folder). Everything is scanned before anyone sees it: files that try to instruct the model or carry code are held or refused, and new reference files land in the Reference area. The castle reads what comes back and makes the next draft from it.</p>
     <form id="cf-return-form" class="cf-form">
-      <label>File <input type="file" id="cf-file" accept=".md,.txt,.markdown,text/plain,text/markdown"></label>
+      <label>File <input type="file" id="cf-file" accept=".md,.txt,.markdown,.zip,text/plain,text/markdown,application/zip"></label>
       <label>Or paste it <textarea id="cf-paste" rows="4" placeholder="CARRIERFILE/1.0 · PROJECT …"></textarea></label>
       <label>A note for the castle <span class="muted">(optional)</span> <input type="text" id="cf-note" maxlength="400" placeholder="what you changed, in a line"></label>
       <div class="cf-actions"><button type="submit" class="primary">Send it back</button><span class="small" id="cf-return-msg" role="status"></span></div>
@@ -123,6 +144,6 @@
   </section>
 </dialog>
 <script src="config.js"></script>
-<script src="app.js?v=20261102d"></script>
+<script src="app.js?v=20261102f"></script>
 </body>
 </html>

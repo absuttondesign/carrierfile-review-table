@@ -113,7 +113,7 @@
   function pickProject(slug, wantItem) {
     const p = state.projects.find((x) => x.slug === slug);
     state.project = p;
-    cfLoad(); renderCfButton();
+    cfLoad(); renderCfButton(); loadReference();
     const tabs = $("projects");
     tabs.hidden = state.projects.length < 2;
     tabs.replaceChildren(...state.projects.map((x) => el("button", { class: "tab", type: "button", "aria-selected": String(x.slug === slug), onclick: () => pickProject(x.slug) }, x.title)));
@@ -239,6 +239,8 @@
       el("div", {}, el("span", { class: "who" }, c.name + (c.author_kind === "castle" ? " (castle)" : "")), " ",
         el("span", { class: "when" }, `${when(c.created_at)} · v${c.draft_version}${c.where_at ? " · at " + c.where_at : ""}`)),
       el("p", { class: "body" }, c.body),
+      (c.assets || []).length ? el("div", { class: "files" }, c.assets.map((a) => el("a", { href: a.url || "#", target: "_blank", rel: "noreferrer", download: a.filename, title: a.filename },
+        a.kind === "image" && a.url ? el("img", { src: a.url, alt: a.filename }) : `${a.filename}`))) : null,
       c.parent_id ? null : el("button", { type: "button", class: "link small", onclick: () => setReply(c) }, "reply"),
       kids.length ? el("ol", { class: "replies" }, kids.map((k) => commentNode(k, []))) : null);
   }
@@ -264,15 +266,101 @@
     const btn = $("comment-form").querySelector("button[type=submit]");
     btn.disabled = true; $("comment-error").textContent = "";
     try {
+      const files = [...$("comment-files").files];
+      const assetIds = [];
+      for (const f of files) {
+        $("comment-error").textContent = `Uploading ${f.name}…`;
+        const r = await uploadAsset(f, { draft_slug: state.item.slug, note: "with a comment" });
+        if (!r.held) assetIds.push(r.id);
+      }
+      $("comment-error").textContent = "";
       await api("/comments", { method: "POST", body: {
         slug: state.item.slug, version: state.version, name: store.get("name"),
         where: $("where").value, body: $("body").value, parent_id: state.replyTo ? state.replyTo.id : undefined,
+        asset_ids: assetIds,
       } });
-      $("body").value = ""; $("where").value = ""; setReply(null);
+      $("body").value = ""; $("where").value = ""; $("comment-files").value = ""; setReply(null);
       await loadComments();
+      if (files.length) loadReference();
     } catch (err) { $("comment-error").textContent = err.message; }
     finally { btn.disabled = false; }
   });
+
+  // ---------- reference assets ----------
+  // The file goes straight from the browser to Storage through a one-time signed address the server hands
+  // out; then the server looks at the real first bytes before the file is listed. Nothing here renders a
+  // file as a page: images, video and audio show through their own elements, everything else is a download.
+  async function uploadAsset(file, opts = {}) {
+    const name = store.get("name");
+    const begin = await api("/assets/begin", { method: "POST", body: {
+      project: state.project.slug, name, filename: file.name, mime: file.type || "application/octet-stream", bytes: file.size,
+      draft_slug: opts.draft_slug || undefined, note: opts.note || undefined, origin: opts.origin || undefined,
+    } });
+    const put = await fetch(begin.upload_url, { method: "PUT", headers: { "content-type": file.type || "application/octet-stream", "x-upsert": "false" }, body: file });
+    if (!put.ok) throw new Error(`Upload of ${file.name} failed (${put.status}).`);
+    return api("/assets/done", { method: "POST", body: { id: begin.id, name } });
+  }
+  function kindIcon(kind, filename) {
+    const ext = (filename.match(/\.([a-z0-9]+)$/i) || [, kind])[1].toUpperCase();
+    return el("span", { class: "icon" }, ext);
+  }
+  function assetThumb(a) {
+    if (!a.url) return el("div", { class: "thumb" }, kindIcon(a.kind, a.filename));
+    if (a.kind === "image" && !/\.(heic|heif|tiff?)$/i.test(a.filename)) return el("div", { class: "thumb" }, el("img", { src: a.url, alt: a.filename, loading: "lazy" }));
+    if (a.kind === "video") return el("div", { class: "thumb" }, el("video", { src: a.url, controls: true, preload: "metadata", muted: true }));
+    if (a.kind === "audio") return el("div", { class: "thumb" }, el("audio", { src: a.url, controls: true, preload: "metadata" }));
+    return el("div", { class: "thumb" }, kindIcon(a.kind, a.filename));
+  }
+  function itemLabel(slug) {
+    const i = state.project && state.project.items.find((x) => x.slug === slug);
+    return i ? `${i.round} · ${i.part}` : slug;
+  }
+  let refAssets = [];
+  async function loadReference() {
+    if (!state.project) return;
+    try {
+      const { assets } = await api(`/assets?project=${encodeURIComponent(state.project.slug)}`);
+      refAssets = assets;
+    } catch (err) { $("ref-grid").replaceChildren(el("p", { class: "error" }, err.message)); return; }
+    renderReference();
+  }
+  function renderReference() {
+    const onlyThis = $("ref-this-item").checked && state.item;
+    const list = onlyThis ? refAssets.filter((a) => a.draft_slug === state.item.slug) : refAssets;
+    $("ref-count").textContent = refAssets.length ? `· ${list.length}${onlyThis ? ` of ${refAssets.length}` : ""}` : "";
+    $("ref-grid").replaceChildren(...(list.length ? list.map((a) => el("div", { class: "ref-card" },
+      assetThumb(a),
+      el("div", { class: "meta" },
+        el("b", {}, a.filename),
+        el("span", {}, `${a.name} · ${when(a.created_at)} · ${Math.max(1, Math.round(a.bytes / 1024))} KB`),
+        a.draft_slug ? el("span", {}, `on ${itemLabel(a.draft_slug)}${a.comment_id ? " · with a comment" : ""}`) : null,
+        a.origin === "return" ? el("span", {}, "came back with a carrierfile") : null,
+        a.note ? el("span", {}, a.note) : null,
+        a.url ? el("a", { href: a.url, download: a.filename, target: "_blank", rel: "noreferrer" }, "download") : null)))
+      : [el("p", { class: "ref-empty" }, onlyThis ? "Nothing on this item yet." : "Nothing here yet. Be the first to drop something in.")]));
+  }
+  $("ref-this-item").addEventListener("change", renderReference);
+  async function addReferenceFiles(files) {
+    const msg = $("ref-msg");
+    const note = $("ref-note").value;
+    let done = 0, held = 0;
+    for (const f of files) {
+      msg.textContent = `Uploading ${f.name}…`;
+      try {
+        const r = await uploadAsset(f, { note, draft_slug: $("ref-this-item").checked && state.item ? state.item.slug : undefined });
+        done += 1; if (r.held) held += 1;
+      } catch (err) { msg.textContent = `${f.name}: ${err.message}`; await new Promise((r) => setTimeout(r, 1800)); }
+    }
+    msg.textContent = done ? `${done} file${done === 1 ? "" : "s"} added${held ? `, ${held} held for the castle to check first` : ""}.` : msg.textContent;
+    $("ref-note").value = "";
+    loadReference();
+  }
+  $("ref-pick").addEventListener("click", () => $("ref-files").click());
+  $("ref-files").addEventListener("change", (e) => { addReferenceFiles([...e.target.files]); e.target.value = ""; });
+  const drop = $("ref-drop");
+  for (const ev of ["dragenter", "dragover"]) drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("is-over"); });
+  for (const ev of ["dragleave", "drop"]) drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("is-over"); });
+  drop.addEventListener("drop", (e) => { if (e.dataTransfer && e.dataTransfer.files.length) addReferenceFiles([...e.dataTransfer.files]); });
 
   // ---------- the project carrierfile ----------
   // Picked items are remembered per project on this browser. The file itself comes from the server, which
@@ -333,6 +421,34 @@
     } catch (err) { $("cf-msg").textContent = err.message; }
   });
   $("cf-clear").addEventListener("click", () => { state.cf = []; cfSave(); renderCfDialog(); });
+  function jszip() {
+    if (window.JSZip) return Promise.resolve(window.JSZip);
+    return new Promise((resolve, reject) => {
+      const s = el("script", { src: "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js", onload: () => resolve(window.JSZip), onerror: () => reject(new Error("Could not load the zip helper.")) });
+      document.head.append(s);
+    });
+  }
+  $("cf-package").addEventListener("click", async () => {
+    const msg = $("cf-msg");
+    try {
+      msg.textContent = "Making the package…";
+      const [JSZip, md] = await Promise.all([jszip(), cfFetch()]);
+      const zip = new JSZip();
+      zip.file("carrierfile.md", md);
+      const { assets } = await api(`/assets?project=${encodeURIComponent(state.project.slug)}`);
+      let n = 0;
+      for (const a of assets) {
+        if (!a.url) continue;
+        msg.textContent = `Adding ${a.filename} (${n + 1} of ${assets.length})…`;
+        const res = await fetch(a.url); if (!res.ok) continue;
+        zip.file(`assets/${a.id}-${a.filename}`, await res.blob()); n += 1;
+      }
+      const blob = await zip.generateAsync({ type: "blob" });
+      const name = cfFilename().replace(/\.md$/, "-package.zip");
+      const link = el("a", { href: URL.createObjectURL(blob), download: name }); document.body.append(link); link.click(); link.remove();
+      msg.textContent = `Saved ${name}: the carrierfile and ${n} reference file${n === 1 ? "" : "s"}.`;
+    } catch (err) { msg.textContent = err.message; }
+  });
 
   // sending a worked carrierfile back
   async function loadReturns() {
@@ -355,8 +471,25 @@
     const msg = $("cf-return-msg"), btn = e.submitter || $("cf-return-form").querySelector("button[type=submit]");
     const file = $("cf-file").files[0];
     let content = $("cf-paste").value, filename = `returned-${cfFilename()}`;
+    const extras = [];
     try {
-      if (file) {
+      if (file && /\.zip$/i.test(file.name)) {
+        msg.textContent = "Opening the package…";
+        const JSZip = await jszip();
+        const zip = await JSZip.loadAsync(file);
+        let mdName = null;
+        for (const [path, entry] of Object.entries(zip.files)) {
+          if (entry.dir || /(^|\/)\./.test(path)) continue;
+          const base = path.split("/").pop();
+          if (/\.(md|txt|markdown)$/i.test(base) && !mdName) {
+            const textContent = await entry.async("string");
+            if (/^\s*CARRIERFILE\//.test(textContent)) { content = textContent; filename = base; mdName = path; continue; }
+          }
+          const blob = await entry.async("blob");
+          if (blob.size > 0) extras.push(new File([blob], base, { type: "" }));
+        }
+        if (!mdName) throw new Error("No carrierfile in that package (a .md starting with CARRIERFILE/).");
+      } else if (file) {
         if (file.size > 2_000_000) throw new Error("That file is over 2 MB. Send the text, not images.");
         content = await file.text(); filename = file.name;
       }
@@ -364,11 +497,18 @@
       btn.disabled = true; msg.textContent = "Scanning and sending…";
       const r = await api("/returns", { method: "POST", body: { project: state.project.slug, name: store.get("name"), note: $("cf-note").value, filename, content } });
       $("cf-file").value = ""; $("cf-paste").value = ""; $("cf-note").value = "";
-      msg.textContent = r.held
+      let added = 0, refused = [];
+      for (const f of extras) {
+        msg.textContent = `Adding ${f.name} to the reference area…`;
+        try { await uploadAsset(f, { origin: "return", note: `came back with ${filename}` }); added += 1; }
+        catch (err) { refused.push(`${f.name}: ${err.message}`); }
+      }
+      msg.textContent = (r.held
         ? "Received, and held for the castle to look at first: " + (r.scan.flags || []).join("; ") + "."
-        : "Received. The castle will read it and work from it.";
+        : "Received. The castle will read it and work from it.")
+        + (added ? ` ${added} reference file${added === 1 ? "" : "s"} added.` : "") + (refused.length ? ` Not added: ${refused.join("; ")}` : "");
       state.project.returns = (state.project.returns || 0) + 1;
-      loadReturns();
+      loadReturns(); if (added) loadReference();
     } catch (err) { msg.textContent = err.message; }
     finally { btn.disabled = false; }
   });
