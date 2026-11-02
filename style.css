@@ -43,7 +43,7 @@ body{margin:0;background:var(--frame);color:var(--on);font:14px/1.5 var(--body)}
 .band{height:8px;background:linear-gradient(90deg,var(--v2) 0 33.3%,var(--v3) 33.3% 66.6%,var(--v4) 66.6%)}
 h1{font:500 34px/1.1 var(--display);margin:0;text-wrap:balance}
 h2{font:500 24px/1.2 var(--display);margin:0 0 10px}
-.label,.direction-head h2,.section-label,.arc b,.status,.when,#comments-on,.cf-dialog h3,.gate label,.ref-head .muted{font-family:"Courier Prime",ui-monospace,monospace!important;text-transform:lowercase!important;letter-spacing:.04em!important}
+.label,.direction-head h2,.section-label,.arc b,.status,.when,#comments-on,.gate label,.ref-head .muted{font-family:"Courier Prime",ui-monospace,monospace!important;text-transform:lowercase!important;letter-spacing:.04em!important}
 .top{display:flex;align-items:center;gap:28px;flex-wrap:wrap;min-height:60px;margin:0 -22px;padding:0 18px;background:var(--bar);border-bottom:1px solid var(--rule);font-family:var(--sans);color:var(--bar-on);position:sticky;top:0;z-index:50}
 .brand{display:inline-flex;align-items:center;gap:22px;text-decoration:none;color:var(--bar-on)}
 .logo{height:26px;width:auto;display:block;filter:invert(1) brightness(.92)}
@@ -92,7 +92,19 @@ h2{font:500 24px/1.2 var(--display);margin:0 0 10px}
 #parts .tab{border:0;border-radius:999px;background:transparent;padding:8px 14px;font-size:14px;color:var(--muted);margin:0}
 #parts .tab:hover{color:var(--fg);background:var(--castle)}
 #parts .tab[aria-selected="true"]{color:var(--fg);background:var(--castle);border-bottom:0}
+.parts-gap{width:1px;height:22px;background:var(--tline);margin:0 10px;align-self:center}
+#parts .tab.aux{font:12px/1 "Courier Prime",monospace;text-transform:lowercase;letter-spacing:.04em;padding:10px 12px}
+#parts .tab.aux .count{margin-left:6px;color:var(--fg)}
+.text-sheet{padding:26px 30px 30px;max-width:86ch;font-size:15px;line-height:1.6}
+.text-sheet h2{font:500 26px/1.15 var(--display);margin:0 0 12px}
+.text-sheet ul{margin:0;padding-left:20px} .text-sheet li{margin:8px 0}
+.text-sheet p{margin:0 0 12px}
+.text-sheet .foot-line{border-top:1px solid var(--tline);padding-top:12px;margin-top:18px}
+.work.is-text{grid-template-columns:1fr}
 .version{margin:0;font:12px/1 "Courier Prime",monospace;text-transform:lowercase;letter-spacing:.04em;color:var(--muted)}
+.spec{display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.spec .tag{font:12px/1 "Courier Prime",monospace;text-transform:lowercase;letter-spacing:.04em;color:var(--muted);border:1px solid var(--tline);border-radius:999px;padding:6px 10px}
+.spec:empty{display:none}
 .version select{font:13px var(--body);border-radius:999px;border-color:var(--tline);background:var(--surface);color:var(--fg)}
 .selectbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .sel{font:500 14px/1 var(--body);color:var(--surface);background:var(--fg);border:1px solid var(--fg);border-radius:999px;padding:11px 18px;cursor:pointer}
@@ -157,10 +169,29 @@ select{width:auto;display:inline-block;margin:0 0 0 6px;padding:5px 10px;border-
 .ask{background:var(--surface);border:1px solid var(--tline);border-radius:14px;padding:18px 22px}
 .ask ul{margin:8px 0 0;padding-left:20px} .ask li{margin:5px 0}
 .foot{color:var(--muted);font-size:13px;margin:0}
+/* The Carrierfile sheet: what travels with the project, and the door for what comes back. */
+.cf-sheet{display:grid;gap:14px;padding:18px 22px 20px}
+.cf-sheet-head{display:flex;align-items:baseline;gap:12px}
+.cf-sheet-head h2{margin:0;font-size:26px}
+.cf-sheet-head .link{margin-left:auto}
+.cf-explain{margin:0;max-width:96ch}
+.cf-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px 36px;align-items:start}
+.cf-sheet h3{font:12px/1.3 "Courier Prime",monospace;text-transform:lowercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px}
+.cf-sheet .cf-sub{margin-top:18px}
+.cf-items{list-style:none;margin:0;padding:0;border-top:1px solid var(--tline)}
+.cf-items li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--tline);font-size:14px}
+.cf-items .meta{color:var(--muted);font-size:12.5px}
+.cf-check{display:flex;align-items:center;gap:8px;font-size:13.5px;margin:10px 0;color:var(--muted)}
+.cf-check input{width:auto;display:inline;margin:0}
+.cf-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px}
+.cf-actions .primary{margin-top:0}
+.cf-form label{margin:8px 0 0} .cf-form input[type=file]{padding:8px 12px;border-style:dashed}
+.cf-return{border-left:1px solid var(--tline);padding-left:28px}
+.cf-sheet .cf-btn{color:var(--fg);border-color:var(--tline);background:var(--surface)} .cf-sheet .cf-btn:hover{border-color:var(--fg)}
 /* Reference: the drop zone and the grid of what people brought. */
-.reference{display:grid;gap:10px}
+.reference{display:grid;gap:10px;border-top:1px solid var(--tline);padding-top:14px}
 .ref-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px}
-.ref-head h2{margin:0}
+.ref-head h3{margin:0}
 .ref-drop{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:14px 16px;border:1px dashed var(--tline);border-radius:14px;background:var(--surface)}
 .ref-drop.is-over{border-color:var(--accent);background:var(--castle)}
 .ref-drop input[type=text]{width:320px;display:inline-block;margin:0;padding:8px 14px;font-size:13.5px;border-radius:999px}
@@ -185,19 +216,8 @@ select{width:auto;display:inline-block;margin:0 0 0 6px;padding:5px 10px;border-
 .cf-count{min-width:18px;height:18px;border-radius:9px;background:var(--ink);color:var(--paper);font:12px/1 var(--label);display:inline-grid;place-items:center;padding:0 6px}
 .sheet .cf-btn{color:var(--fg);border-color:var(--tline);background:var(--surface)}
 .sheet .cf-btn:hover{border-color:var(--fg)}
-.cf-dialog{border:0;border-radius:14px;box-shadow:var(--sheet-shadow);padding:24px 28px 28px;width:min(720px,92vw);background:var(--paper);color:var(--ink);font:14.5px/1.55 var(--sans)}
-.cf-dialog::backdrop{background:rgba(20,20,20,.55)}
-.cf-dialog .muted{color:var(--ink-soft)} .cf-dialog .link{color:var(--ink-soft);font:12px var(--label);text-transform:lowercase} .cf-dialog .link:hover{color:var(--ink)}
-.cf-dialog h2{font:500 32px/1.1 var(--head);margin:0}
-.cf-dialog h3{font:12px/1.3 var(--label);text-transform:lowercase;letter-spacing:.04em;color:var(--ink-soft);margin:22px 0 8px}
-.cf-dialog .primary{background:var(--ink);color:var(--paper);border:0;border-radius:999px;font:500 14px/1 var(--sans);padding:12px 20px}
-.cf-dialog .primary:hover{filter:brightness(1.2)}
-.cf-dialog .cf-items{border-top:1px solid var(--hair)} .cf-dialog .cf-items li{border-bottom:1px solid var(--hair);font-size:14.5px} .cf-dialog .meta{color:var(--ink-soft)}
-.cf-dialog input,.cf-dialog textarea{background:#fff;border:1px solid var(--hair);border-radius:10px;color:var(--ink);font:14px var(--sans)}
-.cf-dialog label{color:var(--ink-soft);font-size:13px}
-.cf-return{border-top:1px solid var(--hair)}
+
 .cf-head{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 6px}
-.cf-dialog .cf-sub{margin-top:22px}
 #empty{color:var(--on-soft)}
 .ask h2{margin-bottom:6px}
 .cf-items{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}

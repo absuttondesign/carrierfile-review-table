@@ -12,7 +12,7 @@
     get(k) { try { return localStorage.getItem("rr." + k) || ""; } catch (e) { return ""; } },
     set(k, v) { try { v ? localStorage.setItem("rr." + k, v) : localStorage.removeItem("rr." + k); } catch (e) { /* private window */ } },
   };
-  let state = { projects: [], project: null, round: null, item: null, version: null, replyTo: null, table: null, cf: [] };
+  let state = { projects: [], project: null, round: null, item: null, version: null, replyTo: null, table: null, cf: [], view: "item" };
   const wantTable = (new URLSearchParams(location.search).get("t") || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 61);
   const contentCache = new Map();
 
@@ -123,10 +123,7 @@
     $("p-lede").hidden = !info.lede;
     $("p-cards").replaceChildren(...(info.cards || []).map((c) => el("div", {}, el("b", {}, c.label), c.text)));
     $("direction").hidden = !info.lede && !(info.cards || []).length;
-    const asks = info.asks || [];
-    $("p-asks").hidden = !asks.length;
-    $("p-asks").querySelector("ul").replaceChildren(...asks.map((a) => el("li", {}, a)));
-    $("p-foot").textContent = info.foot || "";
+    renderCfSheet(); loadReturns();
     const rs = rounds(p);
     const item = p.items.find((i) => i.slug === wantItem);
     const ready = rs.filter((r) => r.items.length);
@@ -173,11 +170,11 @@
     const r = rounds(state.project).find((x) => x.name === state.round);
     const item = r.items.find((i) => i.slug === slug);
     state.item = item; state.version = version || item.version; state.replyTo = null;
-    $("parts").replaceChildren(...r.items.map((i) => el("button", {
-      class: "tab", type: "button", role: "tab", "aria-selected": String(i.slug === slug), onclick: () => pickItem(i.slug),
-      title: i.selects.length ? `select${i.selects.length === 1 ? "" : "s"}: ${i.selects.map((s) => s.name).join(", ")}` : "",
-    }, i.part, i.selects.length ? el("span", { class: "stars inline", "aria-hidden": "true" }, "★".repeat(Math.min(i.selects.length, 8))) : null)));
+    state.view = "item";
+    renderParts(r, slug);
+    showFrame();
     $("version-wrap").hidden = item.versions.length < 2;
+    renderSpec(item);
     $("version").replaceChildren(...[...item.versions].reverse().map((v) => el("option", { value: v, selected: v === state.version }, `v${v}${v === item.version ? " (latest)" : ""}`)));
     document.querySelector(".selectbar").hidden = false;
     document.querySelector(".work-head").hidden = false;
@@ -205,6 +202,62 @@
     $("frame-box").replaceChildren(frame);
   }
   $("version").addEventListener("change", (e) => pickItem(state.item.slug, Number(e.target.value)));
+
+  // ---------- the pieces row: items, then questions and recipe ----------
+  function renderParts(r, slug) {
+    const info = state.project.info || {};
+    const asks = info.asks || [];
+    const recipe = roundRecipe(r);
+    const aux = [];
+    if (asks.length) aux.push(el("button", { class: "tab aux", type: "button", role: "tab", "aria-selected": String(state.view === "questions"), onclick: () => showText("questions") }, "questions", el("span", { class: "count" }, String(asks.length))));
+    aux.push(el("button", { class: "tab aux", type: "button", role: "tab", "aria-selected": String(state.view === "recipe"), onclick: () => showText("recipe"), title: recipe.length ? "" : "how this draft was made: nothing recorded yet" }, "recipe"));
+    $("parts").replaceChildren(...r.items.map((i) => el("button", {
+      class: "tab", type: "button", role: "tab", "aria-selected": String(state.view === "item" && i.slug === slug), onclick: () => pickItem(i.slug),
+      title: i.selects.length ? `select${i.selects.length === 1 ? "" : "s"}: ${i.selects.map((s) => s.name).join(", ")}` : "",
+    }, i.part, i.selects.length ? el("span", { class: "stars inline", "aria-hidden": "true" }, "★".repeat(Math.min(i.selects.length, 8))) : null)),
+    el("span", { class: "parts-gap", "aria-hidden": "true" }), ...aux);
+  }
+  function roundRecipe(r) {
+    const v = r.recipe;
+    return Array.isArray(v) ? v.filter(Boolean) : v ? [String(v)] : [];
+  }
+  function showFrame() {
+    document.querySelector(".work").classList.remove("is-text");
+    $("text-sheet").hidden = true; $("frame-box").hidden = false;
+    document.querySelector(".comments").hidden = false;
+    document.querySelector(".selectbar").hidden = false;
+    $("item-spec").hidden = !$("item-spec").childElementCount;
+    $("version-wrap").hidden = !state.item || state.item.versions.length < 2;
+  }
+  // questions and recipe show as a text sheet where the draft would be; no select, no comments column
+  function showText(kind) {
+    const r = rounds(state.project).find((x) => x.name === state.round);
+    if (!r) return;
+    state.view = kind;
+    renderParts(r, state.item ? state.item.slug : null);
+    const info = state.project.info || {};
+    const body = kind === "questions"
+      ? [el("h2", {}, "What we'd love your eyes on"), el("ul", {}, (info.asks || []).map((a) => el("li", {}, a)))]
+      : [el("h2", {}, `${r.name} · how it was made`),
+         ...(roundRecipe(r).length ? roundRecipe(r).map((t) => el("p", {}, t)) : [el("p", { class: "muted" }, "Nothing recorded for this draft yet. The recipe comes from the draft's own notes when it is posted.")])];
+    $("text-sheet").replaceChildren(...body);
+    $("text-sheet").hidden = false; $("frame-box").hidden = true;
+    document.querySelector(".work").classList.add("is-text");
+    document.querySelector(".comments").hidden = true;
+    document.querySelector(".selectbar").hidden = true;
+    $("item-spec").hidden = true; $("version-wrap").hidden = true;
+  }
+  // What the item is: the project's default spec with the item's own on top. Format and aspect ratio travel
+  // with the item so the next version, or a requested edit, can use another one.
+  function renderSpec(item) {
+    // an item of a different format than the project's default (a text shot list on a video project) keeps only its own spec
+    const base = (state.project.info || {}).spec || {}, own = item.spec || {};
+    const spec = own.format && base.format && own.format !== base.format ? own : { ...base, ...own };
+    const tags = ["format", "aspect", "length"].filter((k) => spec[k]).map((k) => el("span", { class: "tag", title: k }, spec[k]));
+    $("item-spec").replaceChildren(...tags);
+    $("item-spec").title = spec.note || "";
+    $("item-spec").hidden = !tags.length;
+  }
 
   // ---------- selects ----------
   function renderSelects() {
@@ -329,7 +382,7 @@
       const { assets } = await api(`/assets?project=${encodeURIComponent(state.project.slug)}`);
       refAssets = assets;
     } catch (err) { $("ref-grid").replaceChildren(el("p", { class: "error" }, err.message)); return; }
-    renderReference();
+    renderReference(); renderCfSheet();
   }
   function renderReference() {
     const onlyThis = $("ref-this-item").checked && state.item;
@@ -374,7 +427,7 @@
   // only includes published items on this table; the browser never assembles it from the drafts.
   function cfKey() { return "cf." + (state.project ? state.project.slug : ""); }
   function cfLoad() { try { state.cf = JSON.parse(store.get(cfKey()) || "[]"); } catch (e) { state.cf = []; } }
-  function cfSave() { store.set(cfKey(), state.cf.length ? JSON.stringify(state.cf) : ""); renderCfButton(); }
+  function cfSave() { store.set(cfKey(), state.cf.length ? JSON.stringify(state.cf) : ""); renderCfButton(); renderCfSheet(); }
   function cfItems() { return state.cf.map((s) => state.project.items.find((i) => i.slug === s)).filter(Boolean); }
   function renderCfButton() {
     const n = state.project ? cfItems().length : 0;
@@ -392,20 +445,30 @@
     state.cf = state.cf.includes(slug) ? state.cf.filter((s) => s !== slug) : [...state.cf, slug];
     cfSave();
   });
-  function renderCfDialog() {
+  function renderCfSheet() {
+    if (!state.project) return;
     const items = cfItems();
     $("cf-n").textContent = items.length ? `· ${items.length}` : "";
     $("cf-items").replaceChildren(...(items.length ? items.map((i) => el("li", {},
       el("span", {}, `${i.round} · ${i.part}`, " ", el("span", { class: "meta" }, `v${i.version}`)),
-      el("button", { type: "button", class: "link small", onclick: () => { state.cf = state.cf.filter((s) => s !== i.slug); cfSave(); renderCfDialog(); } }, "remove")))
+      el("button", { type: "button", class: "link small", onclick: () => { state.cf = state.cf.filter((s) => s !== i.slug); cfSave(); renderCfSheet(); } }, "remove")))
       : [el("li", { class: "muted" }, "Nothing picked yet. Press “＋ Carrierfile” on any item.")]));
-    $("cf-copy").disabled = $("cf-download").disabled = !items.length;
+    $("cf-copy").disabled = $("cf-download").disabled = $("cf-package").disabled = !items.length;
     $("cf-msg").textContent = "";
+    $("cf-sheet-sub").textContent = `· ${items.length} draft${items.length === 1 ? "" : "s"} picked · ${refAssets.length} reference file${refAssets.length === 1 ? "" : "s"}`;
   }
+  function setCfSheet(open) {
+    $("cf-body").hidden = !open;
+    $("cf-toggle").textContent = open ? "hide" : "show";
+    $("cf-toggle").setAttribute("aria-expanded", String(open));
+    store.set("cfsheet", open ? "" : "closed");
+  }
+  $("cf-toggle").addEventListener("click", () => setCfSheet($("cf-body").hidden));
+  setCfSheet(store.get("cfsheet") !== "closed");
   async function cfFetch() {
     const q = `slugs=${encodeURIComponent(state.cf.join(","))}&comments=${$("cf-comments").checked ? 1 : 0}&name=${encodeURIComponent(store.get("name"))}`;
     const res = await fetch(`${API}/carrierfile.md?${q}`, { headers: { authorization: "Bearer " + store.get("token") } });
-    if (res.status === 401) { $("cf-dialog").close(); showGate("Please sign in again."); throw new Error("signed out"); }
+    if (res.status === 401) { showGate("Please sign in again."); throw new Error("signed out"); }
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Could not make the carrierfile.");
     return res.text();
   }
@@ -413,7 +476,7 @@
     const d = new Date().toISOString().slice(0, 10);
     return `${state.project.slug}-carrierfile-${d}.md`;
   }
-  $("cf-open").addEventListener("click", () => { if (!state.project) return; renderCfDialog(); loadReturns(); $("cf-dialog").showModal(); });
+  $("cf-open").addEventListener("click", () => { if (!state.project) return; setCfSheet(true); renderCfSheet(); loadReturns(); $("cf-sheet").scrollIntoView({ behavior: "smooth", block: "start" }); });
   $("cf-copy").addEventListener("click", async () => {
     $("cf-msg").textContent = "Making it…";
     try { await navigator.clipboard.writeText(await cfFetch()); $("cf-msg").textContent = "Copied. Paste it into a new conversation and type “unpack”."; }
@@ -427,7 +490,7 @@
       $("cf-msg").textContent = `Saved as ${cfFilename()}.`;
     } catch (err) { $("cf-msg").textContent = err.message; }
   });
-  $("cf-clear").addEventListener("click", () => { state.cf = []; cfSave(); renderCfDialog(); });
+  $("cf-clear").addEventListener("click", () => { state.cf = []; cfSave(); renderCfSheet(); });
   function jszip() {
     if (window.JSZip) return Promise.resolve(window.JSZip);
     return new Promise((resolve, reject) => {

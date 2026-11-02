@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Carrierfile Review Table</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=EB+Garamond:ital,wght@0,500;1,500&family=Inter:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261102q">
+<link rel="stylesheet" href="style.css?v=20261102t">
 </head>
 <body>
 <div class="wrap">
@@ -51,6 +51,57 @@
     </section>
     </section>
 
+    <section class="cf-sheet sheet" id="cf-sheet" aria-labelledby="cf-sheet-title">
+      <div class="cf-sheet-head">
+        <h2 id="cf-sheet-title">Carrierfile</h2>
+        <span class="muted small" id="cf-sheet-sub"></span>
+        <button type="button" class="link small" id="cf-toggle" aria-expanded="true" aria-controls="cf-body">hide</button>
+      </div>
+      <div id="cf-body">
+        <p class="muted small cf-explain">Everything here travels with the project. Pick drafts below with “＋ carrierfile”, drop reference files in, and the export carries the direction, the drafts' text, the comments and selects, and the files. Paste it into any AI model and type <b>unpack</b>; when it has new work, tell it to <b>pack up</b> and send the result back here.</p>
+        <div class="cf-grid">
+          <section>
+            <h3>In this carrierfile <span class="muted small" id="cf-n"></span></h3>
+            <ul id="cf-items" class="cf-items"></ul>
+            <label class="cf-check"><input type="checkbox" id="cf-comments" checked> include the comments and selects</label>
+            <div class="cf-actions">
+              <button type="button" class="primary" id="cf-copy">Copy to clipboard</button>
+              <button type="button" class="cf-btn" id="cf-download">Download .md</button>
+              <button type="button" class="cf-btn" id="cf-package" title="The carrierfile plus an assets folder with every reference file">Package (.zip)</button>
+              <button type="button" class="link small" id="cf-clear">clear the list</button>
+              <span class="small" id="cf-msg" role="status"></span>
+            </div>
+          </section>
+          <section class="cf-return">
+            <h3>Send one back</h3>
+            <p class="muted small">The carrierfile a model gave you after <b>pack up</b> (.md or .txt, or paste the text), or a whole package (.zip). It is scanned first: files that try to instruct the model or carry code are held or refused; new reference files land below.</p>
+            <form id="cf-return-form" class="cf-form">
+              <label>File <input type="file" id="cf-file" accept=".md,.txt,.markdown,.zip,text/plain,text/markdown,application/zip"></label>
+              <label>Or paste it <textarea id="cf-paste" rows="3" placeholder="CARRIERFILE/1.0 · PROJECT …"></textarea></label>
+              <label>A note for the castle <span class="muted">(optional)</span> <input type="text" id="cf-note" maxlength="400" placeholder="what you changed, in a line"></label>
+              <div class="cf-actions"><button type="submit" class="primary">Send it back</button><span class="small" id="cf-return-msg" role="status"></span></div>
+            </form>
+            <h3 class="cf-sub">Sent back so far <span class="muted small" id="cf-returns-n"></span></h3>
+            <ul id="cf-returns" class="cf-items"></ul>
+          </section>
+        </div>
+        <div class="reference" id="reference" aria-labelledby="ref-title">
+          <div class="ref-head">
+            <h3 id="ref-title">Reference files <span class="muted small" id="ref-count"></span></h3>
+            <label class="cf-check"><input type="checkbox" id="ref-this-item"> only this item</label>
+          </div>
+          <div class="ref-drop" id="ref-drop">
+            <input type="file" id="ref-files" multiple hidden>
+            <button type="button" class="cf-btn" id="ref-pick">Add files</button>
+            <span class="muted small">or drop them here · images, video, audio, PDF, documents, text · 50 MB each</span>
+            <input type="text" id="ref-note" maxlength="400" placeholder="a note on what this is for (optional)">
+            <span class="small" id="ref-msg" role="status"></span>
+          </div>
+          <div class="ref-grid" id="ref-grid"></div>
+        </div>
+      </div>
+    </section>
+
     <section class="draft-sheet sheet" aria-label="Drafts">
       <div class="drafts-head">
         <section class="round" id="round-info"></section>
@@ -59,6 +110,7 @@
       <div class="work-head">
         <div class="bar">
           <nav class="parts" role="tablist" aria-label="Pieces" id="parts"></nav>
+          <span class="spec" id="item-spec"></span>
           <label class="version" id="version-wrap">version <select id="version"></select></label>
         </div>
         <div class="selectbar">
@@ -74,6 +126,7 @@
     <div class="work">
       <section class="viewer sheet">
         <div class="frame" id="frame-box"><iframe id="frame" title="Draft" sandbox="allow-scripts"></iframe></div>
+        <article class="text-sheet" id="text-sheet" hidden></article>
       </section>
 
       <aside class="comments sheet" aria-label="Comments">
@@ -92,58 +145,12 @@
       </aside>
     </div>
 
-    <section class="reference sheet" id="reference" aria-labelledby="ref-title">
-      <div class="ref-head">
-        <h2 id="ref-title">Reference</h2>
-        <span class="muted small" id="ref-count"></span>
-        <label class="cf-check"><input type="checkbox" id="ref-this-item"> only this item</label>
-      </div>
-      <p class="muted small">Inspiration, sketches, screenshots, clips, documents: anything that helps the work. Everyone on the table can add. It all goes into the project carrierfile package and comes back with it.</p>
-      <div class="ref-drop" id="ref-drop">
-        <input type="file" id="ref-files" multiple hidden>
-        <button type="button" class="cf-btn" id="ref-pick">Add files</button>
-        <span class="muted small">or drop them here · images, video, audio, PDF, documents, text · 50 MB each</span>
-        <input type="text" id="ref-note" maxlength="400" placeholder="a note on what this is for (optional)">
-        <span class="small" id="ref-msg" role="status"></span>
-      </div>
-      <div class="ref-grid" id="ref-grid"></div>
-    </section>
 
-    <section class="ask sheet" id="p-asks" hidden><h2>What we'd love your eyes on</h2><ul></ul></section>
-    <p class="foot" id="p-foot"></p>
   </div>
   <p id="empty" class="muted center" hidden>Nothing is on the table yet.</p>
   <footer class="shell-foot"><span>Carrierfile Review Table</span><span>Comments, selects, reference files and carrierfiles stay with the table. Nothing here is public.</span></footer>
 </div>
-<dialog id="cf-dialog" class="cf-dialog" aria-labelledby="cf-title">
-  <form method="dialog" class="cf-head"><h2 id="cf-title">Project carrierfile</h2><button type="submit" class="link">close</button></form>
-  <p class="muted small">A carrierfile is one text file that carries this project to any AI model: the direction, where it stands, the open questions, and the items you picked with their text, selects and comments. Paste it into a new conversation and type <b>unpack</b>. When you have new work, tell the model to <b>pack up</b>, save what it gives you, and send it back here.</p>
-  <section>
-    <h3>Items in this carrierfile <span class="muted small" id="cf-n"></span></h3>
-    <ul id="cf-items" class="cf-items"></ul>
-    <label class="cf-check"><input type="checkbox" id="cf-comments" checked> include the comments and selects</label>
-    <div class="cf-actions">
-      <button type="button" class="primary" id="cf-copy">Copy to clipboard</button>
-      <button type="button" class="cf-btn" id="cf-download">Download .md</button>
-      <button type="button" class="cf-btn" id="cf-package" title="The carrierfile plus an assets folder with every reference file">Download the package (.zip)</button>
-      <button type="button" class="link small" id="cf-clear">clear the list</button>
-      <span class="small" id="cf-msg" role="status"></span>
-    </div>
-  </section>
-  <section class="cf-return">
-    <h3>Send one back</h3>
-    <p class="muted small">Upload the carrierfile the model gave you after <b>pack up</b> (a .md or .txt file, or paste the text), or a whole package (.zip: the carrierfile plus an assets folder). Everything is scanned before anyone sees it: files that try to instruct the model or carry code are held or refused, and new reference files land in the Reference area. The castle reads what comes back and makes the next draft from it.</p>
-    <form id="cf-return-form" class="cf-form">
-      <label>File <input type="file" id="cf-file" accept=".md,.txt,.markdown,.zip,text/plain,text/markdown,application/zip"></label>
-      <label>Or paste it <textarea id="cf-paste" rows="4" placeholder="CARRIERFILE/1.0 · PROJECT …"></textarea></label>
-      <label>A note for the castle <span class="muted">(optional)</span> <input type="text" id="cf-note" maxlength="400" placeholder="what you changed, in a line"></label>
-      <div class="cf-actions"><button type="submit" class="primary">Send it back</button><span class="small" id="cf-return-msg" role="status"></span></div>
-    </form>
-    <h3 class="cf-sub">Sent back so far <span class="muted small" id="cf-returns-n"></span></h3>
-    <ul id="cf-returns" class="cf-items"></ul>
-  </section>
-</dialog>
 <script src="config.js"></script>
-<script src="app.js?v=20261102q"></script>
+<script src="app.js?v=20261102t"></script>
 </body>
 </html>
