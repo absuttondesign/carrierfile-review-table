@@ -387,6 +387,13 @@
     const keep = sel.value || (state.item ? state.item.slug : "");
     sel.replaceChildren(...draftOptions(keep));
   }
+  async function removeAsset(a) {
+    if (!confirm(`Remove ${a.filename} from the table? The castle keeps a copy.`)) return;
+    try {
+      await api("/assets/remove", { method: "POST", body: { id: a.id, name: store.get("name") } });
+      refAssets = refAssets.filter((x) => x.id !== a.id); renderReference(); renderCfSheet();
+    } catch (err) { $("ref-msg").textContent = err.message; }
+  }
   async function attachAsset(id, slug) {
     await api("/assets/attach", { method: "POST", body: { id, draft_slug: slug || null } });
     const a = refAssets.find((x) => x.id === id); if (a) a.draft_slug = slug || null;
@@ -413,7 +420,9 @@
         a.comment_id ? el("span", {}, "with a comment") : null,
         a.origin === "return" ? el("span", {}, "came back with a carrierfile") : null,
         a.note ? el("span", {}, a.note) : null,
-        a.url ? el("a", { href: a.url, download: a.filename, target: "_blank", rel: "noreferrer" }, "download") : null)))
+        el("span", { class: "ref-links" },
+          a.url ? el("a", { href: a.url, download: a.filename, target: "_blank", rel: "noreferrer" }, "download") : null,
+          a.name === store.get("name") ? el("button", { type: "button", class: "link small", onclick: () => removeAsset(a) }, "remove") : null))))
       : [el("p", { class: "ref-empty" }, onlyThis ? "Nothing on this item yet." : "Nothing here yet. Be the first to drop something in.")]));
   }
   $("ref-this-item").addEventListener("change", renderReference);

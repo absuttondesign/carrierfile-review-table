@@ -207,6 +207,8 @@ select{width:auto;display:inline-block;margin:0 0 0 6px;padding:5px 10px;border-
 .ref-card .meta{padding:8px 10px;display:grid;gap:3px;color:var(--muted)}
 .ref-card .meta b{color:var(--fg);overflow-wrap:anywhere}
 .ref-card .meta a{color:var(--accent)}
+.ref-links{display:flex;gap:10px;align-items:center;margin-top:2px}
+.ref-links .link{font-size:12.5px;color:var(--muted)} .ref-links .link:hover{color:var(--err)}
 .ref-empty{color:var(--muted);font-size:14px;padding:6px 2px}
 .attach input{padding:8px 12px;border-style:dashed}
 .thread .files{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
