@@ -13,6 +13,7 @@
   --bg:#141120; --surface:#1d1930; --fg:#ece8f5; --muted:#a59fb8; --line:#2e2944; --accent:#c79bf0; --accent-ink:#141120;
   --ok:#5fc996; --wait:#e0b45a; --castle:#2a2240; --err:#f19a8c; --sel:#4a3f1c; color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 var(--body)}
 .wrap{max-width:1400px;margin:0 auto;padding:28px 16px 72px;display:grid;gap:22px}
 .band{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--v2) 0 33.3%,var(--v3) 33.3% 66.6%,var(--v4) 66.6%)}
