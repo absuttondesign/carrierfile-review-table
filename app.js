@@ -410,7 +410,7 @@
   function renderReference() {
     const onlyThis = $("ref-this-item").checked && state.item;
     const list = onlyThis ? refAssets.filter((a) => a.draft_slug === state.item.slug) : refAssets;
-    $("ref-count").textContent = refAssets.length ? `· ${list.length}${onlyThis ? ` of ${refAssets.length}` : ""}` : "";
+    $("ref-count").textContent = refAssets.length ? `· ${list.length}${onlyThis ? ` of ${refAssets.length}` : ""} file${refAssets.length === 1 ? "" : "s"}` : "· nothing here yet";
     $("ref-grid").replaceChildren(...(list.length ? list.map((a) => el("div", { class: "ref-card" },
       assetThumb(a),
       el("div", { class: "meta" },
@@ -482,6 +482,8 @@
     $("cf-copy").disabled = $("cf-download").disabled = $("cf-package").disabled = !items.length;
     $("cf-msg").textContent = "";
     $("cf-sheet-sub").textContent = `· ${items.length} draft${items.length === 1 ? "" : "s"} picked · ${refAssets.length} reference file${refAssets.length === 1 ? "" : "s"}`;
+    $("chip-cf").textContent = items.length ? `${items.length} draft${items.length === 1 ? "" : "s"} picked` : "nothing picked";
+    $("chip-ref").textContent = `${refAssets.length} file${refAssets.length === 1 ? "" : "s"}`;
   }
   function setCfSheet(open) {
     $("cf-body").hidden = !open;
@@ -491,6 +493,14 @@
   }
   $("cf-toggle").addEventListener("click", () => setCfSheet($("cf-body").hidden));
   setCfSheet(store.get("cfsheet") !== "closed");
+  function setRefSheet(open) {
+    $("ref-body").hidden = !open;
+    $("ref-toggle").textContent = open ? "hide" : "show";
+    $("ref-toggle").setAttribute("aria-expanded", String(open));
+    store.set("refsheet", open ? "" : "closed");
+  }
+  $("ref-toggle").addEventListener("click", () => setRefSheet($("ref-body").hidden));
+  setRefSheet(store.get("refsheet") !== "closed");
   async function cfFetch() {
     const q = `slugs=${encodeURIComponent(state.cf.join(","))}&comments=${$("cf-comments").checked ? 1 : 0}&name=${encodeURIComponent(store.get("name"))}`;
     const res = await fetch(`${API}/carrierfile.md?${q}`, { headers: { authorization: "Bearer " + store.get("token") } });
@@ -502,7 +512,13 @@
     const d = new Date().toISOString().slice(0, 10);
     return `${state.project.slug}-carrierfile-${d}.md`;
   }
-  $("cf-open").addEventListener("click", () => { if (!state.project) return; setCfSheet(true); renderCfSheet(); loadReturns(); $("cf-sheet").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  function jumpTo(id) {
+    if (!state.project) return;
+    if (id === "cf-sheet") { setCfSheet(true); renderCfSheet(); loadReturns(); } else { setRefSheet(true); }
+    $(id).scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  $("cf-open").addEventListener("click", () => jumpTo("cf-sheet"));
+  document.querySelectorAll("[data-jump]").forEach((b) => b.addEventListener("click", () => jumpTo(b.dataset.jump)));
   $("cf-copy").addEventListener("click", async () => {
     $("cf-msg").textContent = "Making it…";
     try { await navigator.clipboard.writeText(await cfFetch()); $("cf-msg").textContent = "Copied. Paste it into a new conversation and type “unpack”."; }
@@ -551,6 +567,7 @@
     try {
       const { returns } = await api(`/returns?project=${encodeURIComponent(state.project.slug)}`);
       $("cf-returns-n").textContent = returns.length ? `· ${returns.length}` : "";
+      $("chip-returns").hidden = !returns.length; $("chip-returns-n").textContent = String(returns.length);
       $("cf-returns").replaceChildren(...(returns.length ? returns.map((r) => el("li", {},
         el("span", {}, el("span", { class: "who" }, r.name), " ", el("span", { class: "meta" }, `${when(r.created_at)} · ${r.filename}${r.note ? " · " + r.note : ""}`)),
         el("button", { type: "button", class: "link small", onclick: () => downloadReturn(r) }, "download")))

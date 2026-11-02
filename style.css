@@ -169,6 +169,14 @@ select{width:auto;display:inline-block;margin:0 0 0 6px;padding:5px 10px;border-
 .ask{background:var(--surface);border:1px solid var(--tline);border-radius:14px;padding:18px 22px}
 .ask ul{margin:8px 0 0;padding-left:20px} .ask li{margin:5px 0}
 .foot{color:var(--muted);font-size:13px;margin:0}
+/* The strip above the work: where the library and the export are, and how full they are. */
+.project-strip{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:-8px}
+.chip{display:inline-flex;align-items:center;gap:8px;font:13px/1 var(--body);color:var(--fg);background:var(--surface);border:1px solid var(--tline);border-radius:999px;padding:8px 14px;cursor:pointer}
+.chip b{font-weight:500}
+.chip span{font:12px/1 "Courier Prime",monospace;text-transform:lowercase;letter-spacing:.04em;color:var(--muted)}
+.chip:hover{border-color:var(--fg)}
+.chip.static{cursor:default}
+.sheet{scroll-margin-top:76px}
 /* The Carrierfile sheet: what travels with the project, and the door for what comes back. */
 .cf-sheet{display:grid;gap:14px;padding:18px 22px 20px}
 .cf-sheet-head{display:flex;align-items:baseline;gap:12px}
@@ -189,9 +197,10 @@ select{width:auto;display:inline-block;margin:0 0 0 6px;padding:5px 10px;border-
 .cf-return{border-left:1px solid var(--tline);padding-left:28px}
 .cf-sheet .cf-btn{color:var(--fg);border-color:var(--tline);background:var(--surface)} .cf-sheet .cf-btn:hover{border-color:var(--fg)}
 /* Reference: the drop zone and the grid of what people brought. */
-.reference{display:grid;gap:10px;border-top:1px solid var(--tline);padding-top:14px}
+.ref-sheet{display:grid;gap:14px;padding:18px 22px 20px}
+.reference{display:grid;gap:10px}
 .ref-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px}
-.ref-head h3{margin:0}
+.ref-head{justify-content:flex-start}
 .ref-drop{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:14px 16px;border:1px dashed var(--tline);border-radius:14px;background:var(--surface)}
 .ref-drop.is-over{border-color:var(--accent);background:var(--castle)}
 .ref-drop input[type=text]{width:300px;display:inline-block;margin:0;padding:8px 14px;font-size:13.5px;border-radius:999px}
