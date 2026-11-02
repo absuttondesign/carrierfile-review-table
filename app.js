@@ -1,6 +1,8 @@
 // Carrierfile Review Table page. Holds no drafts and no password: everything comes from the
-// review-room function after the shared password is checked there. Drafts play in a sandboxed frame
-// with no same-origin access, so a draft's code cannot read the sign-in kept here.
+// review-room function after a table's password is checked there. The room is a set of client tables;
+// a person signs in to one table (the link may name it: ?t=slug) and sees only that table's published
+// items. Drafts play in a sandboxed frame with no same-origin access, so a draft's code cannot read the
+// sign-in kept here.
 (function () {
   "use strict";
   const API = window.REVIEW_ROOM_API;
@@ -10,7 +12,8 @@
     get(k) { try { return localStorage.getItem("rr." + k) || ""; } catch (e) { return ""; } },
     set(k, v) { try { v ? localStorage.setItem("rr." + k, v) : localStorage.removeItem("rr." + k); } catch (e) { /* private window */ } },
   };
-  let state = { projects: [], project: null, round: null, item: null, version: null, replyTo: null };
+  let state = { projects: [], project: null, round: null, item: null, version: null, replyTo: null, table: null };
+  const wantTable = (new URLSearchParams(location.search).get("t") || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 61);
   const contentCache = new Map();
 
   function el(tag, attrs, ...kids) {
@@ -38,7 +41,7 @@
 
   // ---------- sign in ----------
   function showGate(msg) {
-    store.set("token", "");
+    store.set("token", ""); store.set("table", ""); showTable();
     $("room").hidden = true; $("me").hidden = true; $("empty").hidden = true; $("gate").hidden = false;
     $("gate-name").value = store.get("name");
     $("gate-error").textContent = msg || "";
@@ -51,8 +54,9 @@
     if (!name) { $("gate-error").textContent = "Add your name."; return; }
     btn.disabled = true; $("gate-error").textContent = "";
     try {
-      const r = await api("/login", { method: "POST", body: { password: $("gate-password").value } });
+      const r = await api("/login", { method: "POST", body: { password: $("gate-password").value, table: wantTable || undefined } });
       store.set("token", r.token); store.set("name", name);
+      if (r.table) store.set("table", r.table.title);
       $("gate-password").value = "";
       await start();
     } catch (err) { $("gate-error").textContent = err.message; }
@@ -65,10 +69,19 @@
   });
 
   // ---------- room ----------
+  function showTable() {
+    const t = store.get("table");
+    $("table-name").textContent = t ? " · " + t : "";
+    document.title = t ? `${t} · Carrierfile Review Table` : "Carrierfile Review Table";
+  }
+
   async function start() {
     if (!store.get("name")) { showGate(); return; }
     const r = await api("/room");
     state.projects = r.projects || [];
+    state.table = r.table || null;
+    if (state.table) store.set("table", state.table.title);
+    showTable();
     $("gate").hidden = true; $("me").hidden = false; $("me-name").textContent = store.get("name");
     if (!state.projects.length) { $("empty").hidden = false; return; }
     $("room").hidden = false;
