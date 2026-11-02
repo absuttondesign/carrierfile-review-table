@@ -157,6 +157,7 @@
     if (!ready) {
       $("parts").replaceChildren(); $("version-wrap").hidden = true;
       document.querySelector(".selectbar").hidden = true; $("item-note").textContent = "";
+      document.querySelector(".work-head").hidden = true;
       $("frame-box").replaceChildren(el("div", { class: "pending" }, `${r.name} is ${r.status === "building" ? "being built" : "waiting its turn"}. It will appear here when it lands.`));
       document.querySelector(".comments").hidden = true;
       state.item = null;
@@ -177,6 +178,7 @@
     $("version-wrap").hidden = item.versions.length < 2;
     $("version").replaceChildren(...[...item.versions].reverse().map((v) => el("option", { value: v, selected: v === state.version }, `v${v}${v === item.version ? " (latest)" : ""}`)));
     document.querySelector(".selectbar").hidden = false;
+    document.querySelector(".work-head").hidden = false;
     try { history.replaceState(null, "", "#" + slug); } catch (e) { /* file preview */ }
     renderSelects();
     renderCfButton();

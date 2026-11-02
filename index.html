@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Carrierfile Review Table</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261102d">
 </head>
 <body>
 <div class="wrap">
@@ -57,19 +57,22 @@
       <section class="round" id="round-info"></section>
     </section>
 
+    <div class="work-head">
+      <div class="bar">
+        <nav class="parts" role="tablist" aria-label="Pieces" id="parts"></nav>
+        <label class="version" id="version-wrap">Version <select id="version"></select></label>
+      </div>
+      <div class="selectbar">
+        <button type="button" class="sel" id="select-btn" aria-pressed="false">☆ Make this my select</button>
+        <input type="text" id="select-note" maxlength="200" placeholder="why, or which opening (optional)">
+        <span class="muted small" id="select-list"></span>
+        <button type="button" class="cf-add" id="cf-add" aria-pressed="false" title="Put this item in the carrierfile you take to a model">＋ Carrierfile</button>
+      </div>
+      <p class="muted small" id="item-note"></p>
+    </div>
+
     <div class="work">
       <section class="viewer">
-        <div class="bar">
-          <nav class="parts" role="tablist" aria-label="Pieces" id="parts"></nav>
-          <label class="version" id="version-wrap">Version <select id="version"></select></label>
-        </div>
-        <div class="selectbar">
-          <button type="button" class="sel" id="select-btn" aria-pressed="false">☆ Make this my select</button>
-          <input type="text" id="select-note" maxlength="200" placeholder="why, or which opening (optional)">
-          <span class="muted small" id="select-list"></span>
-          <button type="button" class="cf-add" id="cf-add" aria-pressed="false" title="Put this item in the carrierfile you take to a model">＋ Carrierfile</button>
-        </div>
-        <p class="muted small" id="item-note"></p>
         <div class="frame" id="frame-box"><iframe id="frame" title="Draft" sandbox="allow-scripts"></iframe></div>
       </section>
 
@@ -120,6 +123,6 @@
   </section>
 </dialog>
 <script src="config.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=20261102d"></script>
 </body>
 </html>
