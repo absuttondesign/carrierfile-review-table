@@ -621,8 +621,10 @@
       const { returns } = await api(`/returns?project=${encodeURIComponent(state.project.slug)}`);
       $("cf-returns-n").textContent = returns.length ? `· ${returns.length}` : "";
       $("chip-returns").hidden = !returns.length; $("chip-returns-n").textContent = String(returns.length);
-      $("cf-returns").replaceChildren(...(returns.length ? returns.map((r) => el("li", {},
-        el("span", {}, el("span", { class: "who" }, r.name), " ", el("span", { class: "meta" }, `${when(r.created_at)} · ${r.filename}${r.note ? " · " + r.note : ""}`)),
+      const tops = returns.filter((r) => r.kind !== "piece");
+      const piecesOf = (id) => returns.filter((r) => r.kind === "piece" && r.parent_id === id);
+      $("cf-returns").replaceChildren(...(tops.length ? tops.map((r) => el("li", {},
+        el("span", {}, el("span", { class: "who" }, r.name), " ", el("span", { class: "meta" }, `${when(r.created_at)} · ${r.filename}${r.note ? " · " + r.note : ""}${piecesOf(r.id).length ? " · with " + piecesOf(r.id).map((p) => p.part.toLowerCase()).join(", ") : ""}`)),
         el("button", { type: "button", class: "link small", onclick: () => downloadReturn(r) }, "download")))
         : [el("li", { class: "muted" }, "Nothing sent back yet.")]));
     } catch (err) { $("cf-returns").replaceChildren(el("li", { class: "error" }, err.message)); }
@@ -637,7 +639,8 @@
     const msg = $("cf-return-msg"), btn = e.submitter || $("cf-return-form").querySelector("button[type=submit]");
     const file = $("cf-file").files[0];
     let content = $("cf-paste").value, filename = `returned-${cfFilename()}`;
-    const extras = [];
+    const extras = [], pieces = [];
+    const partOf = (base) => { const b = base.toLowerCase(); return /animatic|player|storyboard/.test(b) ? "Animatic" : /shot/.test(b) ? "Shot list" : /script/.test(b) ? "Script" : base.replace(/\.[a-z0-9]+$/i, ""); };
     try {
       if (file && /\.zip$/i.test(file.name)) {
         msg.textContent = "Opening the package…";
@@ -651,6 +654,11 @@
             const textContent = await entry.async("string");
             if (/^\s*CARRIERFILE\//.test(textContent)) { content = textContent; filename = base; mdName = path; continue; }
           }
+          // a page or a text file beside the carrierfile is a piece of the new draft; anything else is a reference file
+          if (/\.(html?|md|markdown|txt)$/i.test(base) && !/^assets\//i.test(path)) {
+            pieces.push({ filename: base, part: partOf(base), content: await entry.async("string") });
+            continue;
+          }
           const blob = await entry.async("blob");
           if (blob.size > 0) extras.push(new File([blob], base, { type: "" }));
         }
@@ -663,7 +671,14 @@
       btn.disabled = true; msg.textContent = "Scanning and sending…";
       const r = await api("/returns", { method: "POST", body: { project: state.project.slug, name: store.get("name"), note: $("cf-note").value, filename, content } });
       $("cf-file").value = ""; $("cf-paste").value = ""; $("cf-note").value = "";
-      let added = 0, refused = [];
+      let added = 0, refused = [], sent = [];
+      for (const pc of pieces) {
+        msg.textContent = `Sending ${pc.filename} as the new ${pc.part.toLowerCase()}…`;
+        try {
+          const rp = await api("/returns", { method: "POST", body: { project: state.project.slug, name: store.get("name"), filename: pc.filename, content: pc.content, kind: "piece", part: pc.part, parent_id: r.returned.id, note: $("cf-note").value || undefined } });
+          sent.push(pc.part + (rp.held ? " (held)" : ""));
+        } catch (err) { refused.push(`${pc.filename}: ${err.message}`); }
+      }
       for (const f of extras) {
         msg.textContent = `Adding ${f.name} to the reference area…`;
         try { await uploadAsset(f, { origin: "return", note: `came back with ${filename}` }); added += 1; }
@@ -672,7 +687,7 @@
       msg.textContent = (r.held
         ? "Received, and held for the castle to look at first: " + (r.scan.flags || []).join("; ") + "."
         : "Received. The castle will read it and work from it.")
-        + (added ? ` ${added} reference file${added === 1 ? "" : "s"} added.` : "") + (refused.length ? ` Not added: ${refused.join("; ")}` : "");
+        + (sent.length ? ` New work received: ${sent.join(", ")}.` : "") + (added ? ` ${added} reference file${added === 1 ? "" : "s"} added.` : "") + (refused.length ? ` Not added: ${refused.join("; ")}` : "");
       state.project.returns = (state.project.returns || 0) + 1;
       loadReturns(); if (added) loadReference();
     } catch (err) { msg.textContent = err.message; }
