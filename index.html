@@ -6,16 +6,18 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Carrierfile Review Table</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=EB+Garamond:ital,wght@0,500;1,500&family=Inter:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261103q">
+<link rel="stylesheet" href="style.css?v=20261103swap">
 </head>
 <body>
 <div class="wrap">
   <header class="top shell">
     <a class="brand" href="./"><img class="logo" src="carrierfile-logo.svg" alt="Carrierfile" width="663" height="154"><span class="mark"><span id="table-name"></span></span></a>
     <div class="me" id="me" hidden>
+      <div class="here" id="here" role="group" aria-label="Who's here" hidden></div>
       <span>commenting as<b id="me-name"></b></span>
       <button type="button" class="link" id="change-name">change name</button>
       <button type="button" class="link" id="sign-out">sign out</button>
+      <button type="button" class="cf-btn" id="agents-open" title="Your agents on this table">Agents <span id="agents-count" class="cf-count" hidden>0</span></button>
       <button type="button" class="cf-btn" id="cf-open" aria-haspopup="dialog">Carrierfile <span id="cf-count" class="cf-count" hidden>0</span></button>
     </div>
   </header>
@@ -28,11 +30,12 @@
       <label>Your name <input type="text" id="gate-name" maxlength="60" autocomplete="given-name" required></label>
       <button type="submit" class="primary">Open the table</button>
       <p class="error" id="gate-error" role="alert"></p>
+      <p class="muted small">Bringing an agent? It has its own door: <a href="agent.html" id="gate-agent-link">agent.html</a> (it needs the agent pass you make on the table).</p>
     </form>
   </section>
 
   <div id="room" hidden>
-    <section class="client-card">
+    <section class="client-card" id="client-card" data-theme="blank">
     <div class="band" aria-hidden="true"></div>
     <nav class="tabs" id="projects" aria-label="Projects" hidden></nav>
     <header class="intro">
@@ -54,6 +57,7 @@
     <nav class="project-strip" aria-label="Project">
       <button type="button" class="chip" data-jump="ref-sheet"><b>Reference</b><span id="chip-ref">0 files</span></button>
       <button type="button" class="chip" data-jump="cf-sheet"><b>Carrierfile</b><span id="chip-cf">nothing picked</span></button>
+      <button type="button" class="chip" data-jump="agents-sheet"><b>Agents</b><span id="chip-agents">none harnessed</span></button>
       <span class="chip static" id="chip-returns" hidden><b>Sent back</b><span id="chip-returns-n"></span></span>
     </nav>
 
@@ -68,12 +72,15 @@
           <span class="spec" id="item-spec"></span>
           <label class="version" id="version-wrap">version <select id="version"></select></label>
         </div>
+        <!-- round 8: the item's name, its edit icon (pencil, or gray with a lock), the title menu and its sharing -->
+        <div class="item-title" id="item-title"></div>
         <div class="selectbar">
           <button type="button" class="sel" id="select-btn" aria-pressed="false">☆ Make this my select</button>
           <input type="text" id="select-note" maxlength="200" placeholder="why, or which opening (optional)">
           <span class="muted small" id="select-list"></span>
           <button type="button" class="cf-add" id="cf-add" aria-pressed="false" title="Put this item in the carrierfile you take to a model">＋ Carrierfile</button>
         </div>
+        <p class="team-line" id="team-line"></p>
         <p class="muted small" id="item-note"></p>
       </div>
     </section>
@@ -164,11 +171,48 @@
         </div>
       </div>
     </section>
+
+    <section class="agents-sheet sheet" id="agents-sheet" aria-labelledby="agents-title">
+      <div class="cf-sheet-head">
+        <h2 id="agents-title">Your agents</h2>
+        <span class="muted small" id="agents-sub"></span>
+        <button type="button" class="link small" id="agents-toggle" aria-expanded="true" aria-controls="agents-body">hide</button>
+      </div>
+      <div id="agents-body">
+        <p class="cf-explain">Bring your own agent (Claude, ChatGPT, a coding agent) to this table. Name it and you get an <b>agent pass</b>, shown once: paste it to your agent with the note. Harnessed, it reads this table as you do, comments as itself (marked as your agent), and makes <b>team drafts</b> that only you, it and the castle see until you publish them to the table. It never selects, never publishes, never touches anyone else's draft.</p>
+        <div class="cf-grid">
+          <section class="cf-col">
+            <h3>Harness an agent</h3>
+            <form id="harness-form" class="harness-form">
+              <label><span class="cap">the agent's name</span><input type="text" id="harness-name" maxlength="60" placeholder="Nat's Claude" required></label>
+              <div class="cf-actions"><button type="submit" class="primary">Harness it</button><span class="small" id="harness-msg" role="status"></span></div>
+            </form>
+            <div id="pass-box" hidden></div>
+            <h3 class="cf-sub">Your agents <span id="my-agents-n"></span></h3>
+            <ul id="my-agents" class="agent-list"></ul>
+          </section>
+          <section class="cf-col cf-return">
+            <h3>Harnessed to this table</h3>
+            <p class="cf-note">Every agent on the table, and whose it is. Only the person who harnessed an agent (from this browser) or the castle can unharness it or publish its drafts.</p>
+            <ul id="all-agents" class="agent-list"></ul>
+            <h3 class="cf-sub">What an agent can do here</h3>
+            <ul class="can-list">
+              <li><b>Read</b> what you read: the published drafts, comments, selects, direction, reference files; plus its own team drafts.</li>
+              <li><b>Comment and reply</b>, shown as "<i>its name</i> (agent, for you)" with a square mark in your color.</li>
+              <li><b>Make team drafts</b>, from scratch or versioned up from any draft it can read, and keep saving new versions of them. You publish them here when ready.</li>
+              <li><b>Never</b> select, publish, delete, edit anyone else's draft, or reach another table. Its drafts go through the scanner; a flagged one waits for Anna.</li>
+            </ul>
+            <p class="cf-note">The agent's own door: <a href="agent.html" id="agent-door-link">agent.html</a>. The guide for agents: <a href="#" id="agent-guide-link" target="_blank" rel="noreferrer">agent.md</a>.</p>
+          </section>
+        </div>
+      </div>
+    </section>
   </div>
   <p id="empty" class="muted center" hidden>Nothing is on the table yet.</p>
-  <footer class="shell-foot"><span>Carrierfile Review Table</span><span>Comments, selects, reference files and carrierfiles stay with the table. Nothing here is public.</span></footer>
+  <footer class="shell-foot"><span>Carrierfile Review Table</span><span>Comments, selects, reference files, carrierfiles and agents stay with the table. Nothing here is public.</span></footer>
 </div>
 <script src="config.js"></script>
-<script src="app.js?v=20261103q"></script>
+<script src="shared.js?v=20261103swap"></script>
+<script src="app.js?v=20261103swap"></script>
 </body>
 </html>

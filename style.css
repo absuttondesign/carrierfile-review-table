@@ -2,8 +2,9 @@
    (_Kitchen Table/CARRIERFILE-DIRECTIONS-2026-10-20/CASTLE-BOARD-dark-frame.html): a charcoal desk, a darker
    top bar with the lowercase wordmark and small label-over-value blocks, Courier Prime labels, EB Garamond
    headings, Inter body, and the work sitting on paper sheets with a soft shadow. The TABLE (everything inside
-   #room) is one such sheet and wears the client's colors; today's palette is She Writes AI's lavender and the
-   three volume purples. A later table can bring its own palette by overriding the table tokens below. */
+   #room) is one such sheet and wears the client's colors. In this -next build the client card's colors are data
+   on the table (its theme): a table with no theme is BLANK, the shell's own paper and ink (the defaults on
+   .client-card below); the swai preset and custom colors are set by shared.js applyTheme() as inline tokens. */
 :root{
   /* shell: the dark frame */
   /* near-black and near-white, no cream (Anna, 11/2) */
@@ -22,11 +23,12 @@
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --frame:#0f0f0f; --bar:#1b1b1b; color-scheme:light}}
-/* the client card: She Writes AI's lavender, purples and band; a later table overrides these */
-.client-card{--bg:#f6f4f8; --surface:#fff; --fg:#1c1830; --muted:#625c74; --line:#e2dcea; --tline:rgba(90,31,138,.22);
-  --v2:#251E72; --v3:#440D6C; --v4:#73055D; --accent:#5a1f8a; --accent-ink:#fff; --castle:#f0e8f8;
+/* the client card, blank: paper and ink, an ink band. A theme (swai, or a table's own colors) sets these tokens inline. */
+.client-card{--bg:#f4f4f4; --surface:#fff; --fg:#111111; --muted:#5c5c5c; --line:rgba(17,17,17,.14); --tline:rgba(17,17,17,.16);
+  --v2:#111111; --v3:#111111; --v4:#111111; --accent:#111111; --accent-ink:#fff; --castle:#f1f1f1;
   display:grid;gap:18px;background:var(--bg);color:var(--fg);border-radius:14px;box-shadow:var(--sheet-shadow);padding:0 26px 26px;overflow:hidden}
 .client-card>.band{margin:0 -26px 2px}
+.client-card[data-theme="blank"]>.band{height:4px}
 .client-card .link{color:var(--accent)}
 :root[data-theme="dark"]{
   --frame:#0f0f0f; --bar:#1b1b1b; color-scheme:light}
@@ -47,10 +49,11 @@ h2{font:500 24px/1.2 var(--display);margin:0 0 10px}
 .top{display:flex;align-items:center;gap:28px;flex-wrap:wrap;min-height:60px;margin:0 -22px;padding:0 18px;background:var(--bar);border-bottom:1px solid var(--rule);font-family:var(--sans);color:var(--bar-on);position:sticky;top:0;z-index:50}
 .brand{display:inline-flex;align-items:center;gap:22px;text-decoration:none;color:var(--bar-on)}
 .logo{height:26px;width:auto;display:block;filter:invert(1) brightness(.92)}
-.mark{display:flex;flex-direction:column;gap:5px;padding-left:22px;border-left:1px solid var(--rule);font:12px/1 var(--label);text-transform:lowercase;letter-spacing:.04em;color:var(--bar-on-soft)}
-.mark::before{content:"review table"}
-.mark #table-name{font:500 13px/1 var(--sans);color:var(--bar-on);text-transform:none;letter-spacing:0}
-.mark #table-name:empty::before{content:"client tables";color:var(--bar-on-soft)}
+/* the brand's "review table" label; scoped to .brand (round 7) so it never reaches the commenter marks below, which share the class name */
+.brand>.mark{display:flex;flex-direction:column;gap:5px;padding-left:22px;border-left:1px solid var(--rule);font:12px/1 var(--label);text-transform:lowercase;letter-spacing:.04em;color:var(--bar-on-soft)}
+.brand>.mark::before{content:"review table"}
+.brand>.mark #table-name{font:500 13px/1 var(--sans);color:var(--bar-on);text-transform:none;letter-spacing:0}
+.brand>.mark #table-name:empty::before{content:"client tables";color:var(--bar-on-soft)}
 .me{margin-left:auto;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
 .me>span{display:flex;flex-direction:column;gap:5px;padding-left:22px;border-left:1px solid var(--rule);font:12px/1 var(--label);text-transform:lowercase;letter-spacing:.04em;color:var(--bar-on-soft)}
 .me>span b{font:500 13px/1 var(--sans);color:var(--bar-on);text-transform:none;letter-spacing:0}
@@ -281,4 +284,129 @@ select{width:auto;display:inline-block;margin:0 0 0 6px;padding:5px 10px;border-
 .cf-check input{width:auto;display:inline;margin:0}
 .cf-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px}
 .cf-form label{margin:8px 0} .cf-form input[type=file]{padding:6px;border-style:dashed}
+
+/* ---- marks (Anna, 11/2): every commenter gets a small round mark with their initials in a color picked from their
+   name. An agent gets a square mark in its person's color plus the "agent, for <person>" words, so a team reads as
+   one. Castle replies keep the Carrierfile mark. The name is always beside the mark; color is never the only signal. */
+.mark[aria-hidden]{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#555;color:#fff;font:700 10px/1 "Courier Prime",ui-monospace,monospace;letter-spacing:.02em;vertical-align:-6px;margin-right:7px;flex:none;text-transform:uppercase}
+.mark[aria-hidden].agent{border-radius:4px;outline:2px solid var(--surface);outline-offset:-4px}
+.mark[aria-hidden].castle{font-size:9px;text-transform:lowercase;letter-spacing:0}
+
+/* ---- who's here (round 7): top right of the bar, like a shared doc. People round, agents square in their person's
+   color, most recent first, up to six then +N. Hover or focus names each one; your own says "you". The bar is dark in
+   every theme (blank, swai, custom), so the marks get a light ring to read on it. Desktop only, as every castle page. */
+.here{display:flex;align-items:center;gap:0}
+.here[hidden]{display:none}
+.here .here-mark{display:inline-flex;margin-left:-5px;border-radius:50%;outline:none}
+.here .here-mark:first-child{margin-left:0}
+.here .here-mark .mark[aria-hidden]{margin-right:0;width:26px;height:26px;box-shadow:0 0 0 2px var(--bar-on-soft, #cfcfcf)}
+.here .here-mark .mark[aria-hidden].agent{outline-color:transparent;border-radius:5px}
+.here .here-mark .mark[aria-hidden].you{font-size:9px;text-transform:lowercase}
+.here .here-mark:focus-visible .mark[aria-hidden]{box-shadow:0 0 0 3px #fff}
+.here .here-more{margin-left:4px;font:700 11px/1 "Courier Prime",ui-monospace,monospace;color:var(--bar-on-soft, #cfcfcf)}
+.here .here-label{margin-left:8px;font:12px/1 var(--label);text-transform:lowercase;letter-spacing:.04em;color:var(--bar-on-soft, #cfcfcf)}
+.who{display:inline-flex;align-items:center;gap:0}
+.who .for{font:12px/1 "Courier Prime",ui-monospace,monospace;text-transform:lowercase;letter-spacing:.04em;color:var(--muted);margin-left:6px}
+.thread li.agent{border-left:2px dotted var(--tline);padding-left:10px}
+.thread li.agent.linked{border-left-style:solid}
+
+/* ---- team drafts: the group beside the rounds, and the state of the one on screen ---- */
+#rounds .tab.is-team{border-style:dotted}
+#parts .tab .by{font:12px/1 "Courier Prime",monospace;text-transform:lowercase;letter-spacing:.04em;color:var(--muted);margin-left:6px}
+#parts .tab[aria-selected="true"] .by{color:inherit}
+.team-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0;font-size:13.5px;color:var(--muted)}
+.team-line:empty{display:none}
+.team-line .team{color:var(--fg);display:inline-flex;align-items:center}
+.badge{font:12px/1 "Courier Prime",monospace;text-transform:lowercase;letter-spacing:.04em;border:1px solid var(--tline);border-radius:999px;padding:5px 9px;color:var(--muted)}
+.badge.team-only{border-style:dashed;color:var(--fg)}
+.badge.held{color:var(--wait);border-color:var(--wait)}
+.badge.published{color:var(--ok);border-color:var(--ok)}
+.publish{font:500 14px/1 var(--body);color:var(--surface);background:var(--fg);border:1px solid var(--fg);border-radius:999px;padding:9px 14px;cursor:pointer}
+.publish.quiet{background:transparent;color:var(--fg)}
+.publish:disabled{opacity:.6;cursor:wait}
+
+/* ---- the Agents sheet: harness, your agents, everyone's agents ---- */
+.agents-sheet{display:grid;gap:14px;padding:18px 22px 22px}
+#agents-body{display:grid;gap:16px}
+.agent-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--tline)}
+.agent-list>li{display:grid;gap:6px;padding:10px 0;border-bottom:1px solid var(--tline);font-size:14px}
+.agent-list .head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.agent-list .head b{font-weight:500;display:inline-flex;align-items:center}
+.agent-list .meta{color:var(--muted);font-size:12.5px}
+.agent-list .acts{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-left:auto}
+.agent-list .acts .link{font-size:12.5px;color:var(--muted)} .agent-list .acts .link:hover{color:var(--fg)}
+.agent-list .acts .link.danger:hover{color:var(--err)}
+.agent-list li.muted{color:var(--muted)}
+.team-drafts{list-style:none;margin:0;padding:0 0 0 29px;display:grid;gap:4px}
+.team-drafts li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:13.5px}
+.team-drafts .meta{color:var(--muted);font-size:12.5px}
+.pass-box{display:grid;gap:8px;background:var(--castle);border:1px solid var(--tline);border-radius:12px;padding:12px 14px;margin-top:8px}
+.pass-box .cap{font:12px/1 "Courier Prime",monospace;text-transform:lowercase;letter-spacing:.04em;color:var(--muted)}
+.pass-box code{display:block;font:13px/1.5 "Courier Prime",ui-monospace,monospace;word-break:break-all;user-select:all;background:var(--surface);border:1px solid var(--tline);border-radius:8px;padding:8px 10px}
+.pass-box .once{font-size:12.5px;color:var(--wait)}
+.harness-form{display:grid;gap:8px}
+.harness-form label{margin:0;display:grid;gap:6px}
+.harness-form input{margin-top:0}
+.can-list{margin:0;padding-left:18px;font-size:13.5px;color:var(--muted)} .can-list li{margin:3px 0}
+.can-list b{color:var(--fg);font-weight:500}
+
+/* ---- the agent's door (agent.html): a pass screen, then a plain text dashboard with forms ---- */
+.door{display:grid;gap:22px}
+.door .sheet{display:grid;gap:12px}
+.door h2{font-size:24px}
+.door h3{font:600 11px/1 var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--fg);margin:12px 0 0}
+.door .item{border-top:1px solid var(--tline);padding:10px 0}
+.door .item>summary{cursor:pointer;font-size:15px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;list-style:none}
+.door .item>summary::-webkit-details-marker{display:none}
+.door .item>summary::before{content:"▸";font-size:11px;color:var(--muted)}
+.door .item[open]>summary::before{content:"▾"}
+.door .item .meta{color:var(--muted);font-size:12.5px}
+.door .inner{display:grid;gap:10px;padding:8px 0 4px 18px}
+.door pre.text{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.55 "Courier Prime",ui-monospace,monospace;background:var(--castle);border:1px solid var(--tline);border-radius:10px;padding:12px 14px;margin:0;max-height:60vh;overflow:auto}
+.door .acts{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.door form.card{display:grid;gap:8px}
+.door form.card label{margin:0;display:grid;gap:6px}
+.door form.card input,.door form.card textarea,.door form.card select{margin-top:0}
+.door form.card select{display:block;width:100%;border-radius:10px;padding:9px 12px}
+.door .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.door .status{font-size:13.5px;min-height:1.2em}
+.door .thread{max-height:none;margin:0}
+.door .me-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;font-size:14px}
+/* round 8: the item's name, the edit icon with its note, the title menu, the editor, version history. Colors come
+   from the theme tokens only, so blank, swai and custom tables all carry them. */
+.item-title{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:10px 0 4px;position:relative}
+.item-title .item-name{font:600 17px/1.25 var(--body);margin:0;color:var(--fg)}
+.item-title .sharing-word{font-size:12.5px}
+.edit-icon,.title-chevron{background:none;border:1px solid var(--tline);border-radius:8px;color:var(--fg);cursor:pointer;min-width:30px;height:30px;padding:0 7px;display:inline-flex;align-items:center;justify-content:center;gap:3px;font:15px/1 var(--body)}
+.edit-icon:hover,.title-chevron:hover{border-color:var(--accent);color:var(--accent)}
+.edit-icon:focus-visible,.title-chevron:focus-visible,.menu-item:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.edit-icon.is-locked{color:var(--muted);cursor:default;opacity:.75}
+.edit-icon.is-locked:hover{border-color:var(--tline);color:var(--muted)}
+/* the small lock: a shackle and a body, drawn in the muted ink */
+.edit-icon .lock{position:relative;width:8px;height:6px;background:currentColor;border-radius:1.5px;margin-top:5px}
+.edit-icon .lock::before{content:"";position:absolute;left:1px;top:-5px;width:4px;height:5px;border:1.5px solid currentColor;border-bottom:0;border-radius:3px 3px 0 0}
+.tip-wrap{position:relative;display:inline-flex}
+.tip{position:absolute;left:0;top:calc(100% + 6px);z-index:20;width:max-content;max-width:300px;background:var(--surface);color:var(--fg);border:1px solid var(--tline);border-radius:10px;padding:8px 10px;font:13px/1.4 var(--body);box-shadow:0 6px 20px rgba(0,0,0,.12);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .12s}
+.tip-wrap:hover .tip,.tip-wrap:focus-within .tip{opacity:1;visibility:visible}
+.chip.welcome{font:12px/1 "Courier Prime",monospace;text-transform:lowercase;letter-spacing:.04em;background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:5px 9px}
+.menu-wrap{position:relative;display:inline-flex}
+.title-menu{position:absolute;left:0;top:calc(100% + 6px);z-index:30;min-width:220px;background:var(--surface);color:var(--fg);border:1px solid var(--tline);border-radius:12px;padding:6px;box-shadow:0 10px 30px rgba(0,0,0,.16);display:grid}
+.menu-item{background:none;border:0;border-radius:8px;text-align:left;font:14px/1.2 var(--body);color:var(--fg);padding:8px 10px;cursor:pointer}
+.menu-item:hover,.menu-item:focus{background:var(--castle)}
+.menu-item[aria-disabled="true"]{color:var(--muted);cursor:default}
+.menu-item.radio{padding-left:26px;position:relative}
+.menu-item.radio[aria-checked="true"]::before{content:"✓";position:absolute;left:9px}
+.menu-heading{font:600 11px/1 var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:8px 10px 4px}
+.menu-sep{height:1px;background:var(--line);margin:4px 2px}
+.title-msg{font-size:13px}
+.editor{display:grid;gap:10px;padding:12px}
+.editor-panes{display:grid;grid-template-columns:1fr 1fr;gap:12px;min-height:60vh}
+.editor-text{width:100%;min-height:60vh;resize:vertical;font:13.5px/1.55 "Courier Prime",ui-monospace,monospace;color:var(--fg);background:var(--surface);border:1px solid var(--tline);border-radius:10px;padding:12px 14px;box-sizing:border-box}
+.editor-preview{overflow:auto;max-height:70vh;border:1px dashed var(--tline);border-radius:10px;padding:12px 16px;color:var(--fg);background:var(--bg)}
+.editor-preview h3,.editor-preview h4,.editor-preview h5{margin:.6em 0 .3em}
+.editor-preview p{margin:.4em 0}
+.editor-foot{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.editor-status{margin:0;min-height:1.2em}
+.text-sheet ul.history{padding-left:18px}
+.text-sheet ul.history li{margin:4px 0;font-size:14px}
 @media (max-width:1050px){.work{grid-template-columns:1fr}.comments{position:static}.thread{max-height:none}.frame iframe{height:80vh}}
