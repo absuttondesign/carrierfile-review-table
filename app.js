@@ -408,6 +408,17 @@
     if (current && !chosen.includes(current)) wrap.append(el("button", { type: "button", class: "tag-add", onclick: () => change([...chosen, current]) }, `＋ ${itemLabel(current)}`));
     const fold = el("details", { class: "tag-pick" }, el("summary", {}, "＋ draft"));
     const list = el("div", { class: "tag-list" });
+    // the list floats above everything (fixed to the window), so no card edge can clip it; one open at a time
+    fold.addEventListener("toggle", () => {
+      if (!fold.open) return;
+      document.querySelectorAll("details.tag-pick[open]").forEach((d) => { if (d !== fold) d.open = false; });
+      const r = fold.querySelector("summary").getBoundingClientRect();
+      const below = window.innerHeight - r.bottom;
+      list.style.left = Math.min(r.left, window.innerWidth - 240) + "px";
+      list.style.top = (below > 260 ? r.bottom + 4 : Math.max(8, r.top - 4 - Math.min(250, list.scrollHeight || 250))) + "px";
+    });
+    const closeOnOutside = (ev) => { if (fold.open && !fold.contains(ev.target)) fold.open = false; };
+    document.addEventListener("pointerdown", closeOnOutside);
     for (const r of rounds(state.project)) {
       if (!r.items.length) continue;
       list.append(el("b", {}, r.name));
