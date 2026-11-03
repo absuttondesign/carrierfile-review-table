@@ -134,6 +134,37 @@
         <span class="muted small" id="cf-sheet-sub"></span>
         <button type="button" class="link small" id="cf-toggle" aria-expanded="true" aria-controls="cf-body">hide</button>
       </div>
+      <div id="cf-body">
+        <p class="cf-explain">One file that carries the project to any AI model: the direction, the drafts you pick, their comments and selects, and every reference file. Paste it in and type “unpack”. When the model has new work, tell it to “pack up” and send the result back here.</p>
+        <div class="cf-grid">
+          <section class="cf-col">
+            <h3>In this carrierfile <span id="cf-n"></span></h3>
+            <ul id="cf-items" class="cf-items"></ul>
+            <label class="cf-check"><input type="checkbox" id="cf-comments" checked> include the comments and selects</label>
+            <div class="cf-actions">
+              <button type="button" class="primary" id="cf-copy">Copy to clipboard</button>
+              <button type="button" class="cf-btn" id="cf-download">Download .md</button>
+              <button type="button" class="cf-btn" id="cf-package" title="The carrierfile plus an assets folder with every reference file">Package (.zip)</button>
+              <button type="button" class="link small" id="cf-clear">clear the list</button>
+              <span class="small" id="cf-msg" role="status"></span>
+            </div>
+          </section>
+          <section class="cf-col cf-return">
+            <h3>Send one back</h3>
+            <p class="cf-note">The carrierfile a model gave you after “pack up”, as .md or .txt, pasted text, or a whole package (.zip). It is scanned first; files that try to instruct the model or carry code are held or refused.</p>
+            <form id="cf-return-form" class="cf-form">
+              <label><span class="cap">file</span><input type="file" id="cf-file" accept=".md,.txt,.markdown,.zip,text/plain,text/markdown,application/zip"></label>
+              <label><span class="cap">or paste it</span><textarea id="cf-paste" rows="3" placeholder="CARRIERFILE/1.0 · PROJECT …"></textarea></label>
+              <label><span class="cap">note (optional)</span><input type="text" id="cf-note" maxlength="400" placeholder="what you changed, in a line"></label>
+              <div class="cf-actions"><button type="submit" class="primary">Send it back</button><span class="small" id="cf-return-msg" role="status"></span></div>
+            </form>
+            <h3 class="cf-sub">Sent back so far <span id="cf-returns-n"></span></h3>
+            <ul id="cf-returns" class="cf-items"></ul>
+          </section>
+        </div>
+      </div>
+    </section>
+  </div>
   <p id="empty" class="muted center" hidden>Nothing is on the table yet.</p>
   <footer class="shell-foot"><span>Carrierfile Review Table</span><span>Comments, selects, reference files and carrierfiles stay with the table. Nothing here is public.</span></footer>
 </div>
