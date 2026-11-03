@@ -312,7 +312,7 @@
         el("span", { class: "who" }, c.name + (c.author_kind === "castle" ? " (castle)" : "")), " ",
         el("span", { class: "when" }, `${when(c.created_at)} · v${c.draft_version}${c.where_at ? " · at " + c.where_at : ""}${linked}`)),
       el("p", { class: "body" }, c.body),
-      (c.assets || []).length ? el("div", { class: "files" }, c.assets.map((a) => el("a", { href: a.url || "#", target: "_blank", rel: "noreferrer", download: a.filename, title: a.filename },
+      (c.assets || []).length ? el("div", { class: "files" }, c.assets.map((a) => el("a", { href: a.kind === "image" ? (a.url || "#") : downloadUrl(a), target: a.kind === "image" ? "_blank" : null, rel: "noreferrer", title: a.filename },
         a.kind === "image" && a.url ? el("img", { src: a.url, alt: a.filename }) : `${a.filename}`))) : null,
       c.parent_id ? null : el("button", { type: "button", class: "link small", onclick: () => setReply(c) }, "reply"),
       kids.length ? el("ol", { class: "replies" }, kids.map((k) => commentNode(k, []))) : null);
@@ -379,6 +379,7 @@
     if (!put.ok) throw new Error(`Storage refused the file (${put.status}: ${(await put.text().catch(() => "")).slice(0, 120)}).`);
     return api("/assets/done", { method: "POST", body: { id: begin.id, name } });
   }
+  function downloadUrl(a) { return a.url ? a.url + (a.url.includes("?") ? "&" : "?") + "download=" + encodeURIComponent(a.filename) : "#"; }
   function kindIcon(kind, filename) {
     const ext = (filename.match(/\.([a-z0-9]+)$/i) || [, kind])[1].toUpperCase();
     return el("span", { class: "icon" }, ext);
@@ -402,10 +403,17 @@
     const current = state.item ? state.item.slug : null;
     const wrap = el("span", { class: "tags" + (opts.compact ? " compact" : "") });
     const change = (next) => onChange([...new Set(next)]);
-    for (const slug of chosen) wrap.append(el("span", { class: "tag-chip" }, itemLabel(slug),
-      el("button", { type: "button", class: "x", title: "take this draft off", onclick: () => change(chosen.filter((s) => s !== slug)) }, "×")));
+    // linked drafts: solid chips with ×; none: a solid "whole project" chip; × turns a chip red-dotted "unlinked"
+    // for a beat before the list re-renders. The only action is "+ draft", which opens the list.
+    for (const slug of chosen) {
+      const chip = el("span", { class: "tag-chip" }, itemLabel(slug));
+      chip.append(el("button", { type: "button", class: "x", title: "unlink this draft", onclick: () => {
+        chip.className = "tag-chip unlinked"; chip.replaceChildren("unlinked");
+        setTimeout(() => change(chosen.filter((s) => s !== slug)), 700);
+      } }, "×"));
+      wrap.append(chip);
+    }
     if (!chosen.length) wrap.append(el("span", { class: "tag-chip whole" }, "whole project"));
-    if (current && !chosen.includes(current)) wrap.append(el("button", { type: "button", class: "tag-add", onclick: () => change([...chosen, current]) }, `＋ ${itemLabel(current)}`));
     const fold = el("details", { class: "tag-pick" }, el("summary", {}, "＋ draft"));
     const list = el("div", { class: "tag-list" });
     // the list floats above everything (fixed to the window), so no card edge can clip it; one open at a time
@@ -466,7 +474,7 @@
         a.origin === "return" ? el("span", {}, "came back with a carrierfile") : null,
         a.note ? el("span", {}, a.note) : null,
         el("span", { class: "ref-links" },
-          a.url ? el("a", { href: a.url, download: a.filename, target: "_blank", rel: "noreferrer" }, "download") : null,
+          a.url ? el("a", { href: downloadUrl(a), rel: "noreferrer" }, "download") : null,
           a.name === store.get("name") ? el("button", { type: "button", class: "link small", onclick: () => removeAsset(a) }, "remove") : null))))
       : [el("p", { class: "ref-empty" }, onlyThis ? "Nothing on this item yet." : "Nothing here yet. Be the first to drop something in.")]));
   }
