@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Carrierfile Review Table</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=EB+Garamond:ital,wght@0,500;1,500&family=Inter:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261103a">
+<link rel="stylesheet" href="style.css?v=20261103b">
 </head>
 <body>
 <div class="wrap">
@@ -88,8 +88,13 @@
         <h2>Comments <span class="muted small" id="comments-on"></span></h2>
         <form id="comment-form" class="card">
           <p class="muted small" id="reply-to" hidden></p>
-          <label>Where <span class="muted">(optional: a time like 0:36, or a section)</span>
-            <input type="text" id="where" maxlength="80"></label>
+          <div class="shot-row">
+            <label class="shot-field">Shot <span class="muted">(the number in the player or the list)</span>
+              <input type="number" id="shot" min="1" max="999" inputmode="numeric" placeholder="–"></label>
+            <label>Where <span class="muted">(optional: a time like 0:36)</span>
+              <input type="text" id="where" maxlength="80"></label>
+          </div>
+          <p class="muted small shot-hint" id="shot-hint">Click a shot in the player or the shot list and its number lands here. A note on a shot shows on both pages.</p>
           <label>Comment <textarea id="body" rows="4" maxlength="4000" required></textarea></label>
           <label class="attach">Attach a file <span class="muted">(optional: a sketch, a screenshot, a reference)</span>
             <input type="file" id="comment-files" multiple></label>
@@ -164,6 +169,6 @@
   <footer class="shell-foot"><span>Carrierfile Review Table</span><span>Comments, selects, reference files and carrierfiles stay with the table. Nothing here is public.</span></footer>
 </div>
 <script src="config.js"></script>
-<script src="app.js?v=20261103a"></script>
+<script src="app.js?v=20261103b"></script>
 </body>
 </html>

@@ -291,14 +291,26 @@
     finally { btn.disabled = false; }
   });
 
+  // ---------- shots: the player and the shot list both say which shot is on screen ----------
+  let shotOnScreen = null;
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (!d || d.animatic !== "shot" || !Number.isInteger(d.n)) return;
+    shotOnScreen = { n: d.n, id: d.id || null, from: d.from || "the player" };
+    if (document.activeElement !== $("shot")) $("shot").value = d.n;
+    $("shot-hint").textContent = `Shot ${d.n}${d.id ? ` (${d.id})` : ""} is on screen${d.from === "shot list" ? " in the list" : ""}. Your note will land on it; clear the box to comment on the whole piece.`;
+  });
+
   // ---------- comments ----------
   function when(iso) {
     try { return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); } catch (e) { return iso; }
   }
   function commentNode(c, kids) {
-    return el("li", { class: c.author_kind === "castle" ? "castle" : "" },
-      el("div", {}, el("span", { class: "who" }, c.name + (c.author_kind === "castle" ? " (castle)" : "")), " ",
-        el("span", { class: "when" }, `${when(c.created_at)} · v${c.draft_version}${c.where_at ? " · at " + c.where_at : ""}`)),
+    const linked = c.on_part ? ` · made on the ${c.on_part.toLowerCase()}` : "";
+    return el("li", { class: (c.author_kind === "castle" ? "castle" : "") + (c.on_part ? " linked" : "") },
+      el("div", {}, c.shot != null ? el("button", { type: "button", class: "shot-badge", title: "comment on this shot", onclick: () => { $("shot").value = c.shot; $("body").focus(); } }, `shot ${c.shot}`) : null,
+        el("span", { class: "who" }, c.name + (c.author_kind === "castle" ? " (castle)" : "")), " ",
+        el("span", { class: "when" }, `${when(c.created_at)} · v${c.draft_version}${c.where_at ? " · at " + c.where_at : ""}${linked}`)),
       el("p", { class: "body" }, c.body),
       (c.assets || []).length ? el("div", { class: "files" }, c.assets.map((a) => el("a", { href: a.url || "#", target: "_blank", rel: "noreferrer", download: a.filename, title: a.filename },
         a.kind === "image" && a.url ? el("img", { src: a.url, alt: a.filename }) : `${a.filename}`))) : null,
@@ -309,7 +321,7 @@
     const item = state.item;
     const list = $("comment-list");
     try {
-      const { comments } = await api(`/comments?slug=${encodeURIComponent(item.slug)}`);
+      const { comments } = await api(`/comments?slug=${encodeURIComponent(item.slug)}&linked=1`);
       if (state.item !== item) return;
       item.comments = comments.length;
       const top = comments.filter((c) => !c.parent_id).reverse();
@@ -318,6 +330,7 @@
   }
   function setReply(c) {
     state.replyTo = c;
+    if (c && c.shot != null) $("shot").value = c.shot;
     $("reply-to").hidden = !c;
     $("reply-to").replaceChildren(...(c ? [`Replying to ${c.name}. `, el("button", { type: "button", class: "link", onclick: () => setReply(null) }, "cancel")] : []));
     if (c) $("body").focus();
@@ -337,10 +350,12 @@
       $("comment-error").textContent = "";
       await api("/comments", { method: "POST", body: {
         slug: state.item.slug, version: state.version, name: store.get("name"),
-        where: $("where").value, body: $("body").value, parent_id: state.replyTo ? state.replyTo.id : undefined,
+        where: $("where").value, shot: $("shot").value ? Number($("shot").value) : undefined,
+        body: $("body").value, parent_id: state.replyTo ? state.replyTo.id : undefined,
         asset_ids: assetIds,
       } });
       $("body").value = ""; $("where").value = ""; $("comment-files").value = ""; setReply(null);
+      $("shot").value = shotOnScreen ? shotOnScreen.n : "";
       await loadComments();
       if (files.length) loadReference();
     } catch (err) { $("comment-error").textContent = err.message; }
