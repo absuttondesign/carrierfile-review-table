@@ -298,7 +298,7 @@
     if (!d || d.animatic !== "shot" || !Number.isInteger(d.n)) return;
     shotOnScreen = { n: d.n, id: d.id || null, from: d.from || "the player" };
     if (document.activeElement !== $("shot")) $("shot").value = d.n;
-    $("shot-hint").textContent = `Shot ${d.n}${d.id ? ` (${d.id})` : ""} is on screen${d.from === "shot list" ? " in the list" : ""}. Your note will land on it; clear the box to comment on the whole piece.`;
+    $("shot-hint").textContent = `on shot ${d.n}${d.id ? ` · ${d.id}` : ""}`;
   });
 
   // ---------- comments ----------

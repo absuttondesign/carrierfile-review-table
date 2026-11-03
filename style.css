@@ -241,7 +241,8 @@ select{width:auto;display:inline-block;margin:0 0 0 6px;padding:5px 10px;border-
 .attach input{padding:8px 12px;border-style:dashed}
 .shot-row{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px}
 .shot-row input[type=number]{font-family:"Courier Prime",monospace;font-weight:700}
-.shot-hint{margin:6px 0 0}
+.shot-hint{margin:4px 0 0;font:12px/1 "Courier Prime",monospace;text-transform:lowercase;letter-spacing:.04em}
+.shot-hint:empty{display:none}
 .shot-badge{font:12px/1 "Courier Prime",monospace;text-transform:lowercase;letter-spacing:.04em;color:var(--fg);background:var(--castle);border:0;border-radius:999px;padding:4px 8px;margin-right:6px;cursor:pointer}
 .thread li.linked{border-left:2px solid var(--tline);padding-left:10px}
 .thread .files{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
