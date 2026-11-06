@@ -299,6 +299,7 @@ select{width:auto;display:inline-block;margin:0 0 0 6px;padding:5px 10px;border-
 .here[hidden]{display:none}
 .here .here-mark{display:inline-flex;margin-left:-5px;border-radius:50%;outline:none}
 .here .here-mark:first-child{margin-left:0}
+.here .here-mark.idle{filter:grayscale(1);opacity:.45}
 .here .here-mark .mark[aria-hidden]{margin-right:0;width:26px;height:26px;box-shadow:0 0 0 2px var(--bar-on-soft, #cfcfcf)}
 .here .here-mark .mark[aria-hidden].agent{outline-color:transparent;border-radius:5px}
 .here .here-mark .mark[aria-hidden].you{font-size:9px;text-transform:lowercase}

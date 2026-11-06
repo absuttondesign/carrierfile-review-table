@@ -1016,8 +1016,15 @@
       return el("span", { class: "here-mark", tabindex: "0", title: h.title, "aria-label": h.title }, m);
     });
     if (plan.extra) marks.push(el("span", { class: "here-more", title: `${plan.extra} more here` }, `+${plan.extra}`));
+    // Harnessed agents that are quiet stay in the bar, greyed, instead of vanishing (Anna, 11/6).
+    const active = new Set((state.here || []).filter((h) => h.kind === "agent").map((h) => `${h.name}|${h.person ?? h.person_name ?? ""}`));
+    const idle = (state.agents || []).filter((a) => !active.has(`${a.name}|${a.person ?? ""}`) && !(state.here || []).some((h) => h.kind === "agent" && h.name === a.name));
+    for (const a of idle) {
+      const t = `${a.name} (agent, for ${a.person || "someone on the table"}) · harnessed, idle${a.last_seen_at ? ` · last seen ${RR.ago(a.last_seen_at)}` : ""}`;
+      marks.push(el("span", { class: "here-mark idle", tabindex: "0", title: t, "aria-label": t }, RR.mark(a.name, "agent", a.person)));
+    }
     box.replaceChildren(...marks, plan.label ? el("span", { class: "here-label" }, plan.label) : null);
-    box.hidden = !plan.shown.length;
+    box.hidden = !marks.length;
   }
   async function checkIn() {
     if (!store.get("token") || document.visibilityState === "hidden") return;
@@ -1063,7 +1070,7 @@
       const r = await api("/agents");
       agentDetail = r.agents || [];
       state.agents = agentDetail.map((a) => ({ id: a.id, name: a.name, person: a.person, last_seen_at: a.last_seen_at, harnessed_at: a.harnessed_at, yours: !!a.yours }));
-      renderAgents(); renderAgentsChip();
+      renderAgents(); renderAgentsChip(); renderHere();
     } catch (err) { $("my-agents").replaceChildren(el("li", { class: "error" }, err.message)); }
   }
   function draftLine(d, managed) {
