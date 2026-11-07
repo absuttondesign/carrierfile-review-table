@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Carrierfile Review Table</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=EB+Garamond:ital,wght@0,500;1,500&family=Inter:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20261106cut">
+<link rel="stylesheet" href="style.css?v=20261106rate">
 </head>
 <body>
 <div class="wrap">
@@ -122,6 +122,7 @@
         <p class="muted small cf-explain">The project's library: inspiration, sketches, screenshots, clips, documents. Everyone on the table can add, and a file can sit on one draft or on the whole project. The carrierfile package takes every file here with it.</p>
         <div class="ref-head">
           <label class="cf-check"><input type="checkbox" id="ref-this-item"> only this item</label>
+          <span class="ref-filters" id="ref-filters" role="group" aria-label="Show files" hidden></span>
         </div>
         <div class="ref-drop" id="ref-drop">
           <input type="file" id="ref-files" multiple hidden>
@@ -209,12 +210,25 @@
       </div>
     </section>
   </div>
+  <aside class="file-panel" id="file-panel" role="dialog" aria-labelledby="file-panel-title" hidden>
+    <div class="file-panel-head">
+      <h2 id="file-panel-title">File</h2>
+      <button type="button" class="link small" id="file-panel-close">close</button>
+    </div>
+    <div id="file-panel-file" class="file-panel-file"></div>
+    <ol id="file-comment-list" class="thread"></ol>
+    <form id="file-comment-form" class="file-comment-form">
+      <div id="file-reply-to" class="small" hidden></div>
+      <textarea id="file-comment-body" rows="3" maxlength="4000" placeholder="What do you like about it, or what doesn't work?" required></textarea>
+      <div class="cf-actions"><button type="submit" class="primary">Comment</button><span class="small" id="file-comment-error" role="status"></span></div>
+    </form>
+  </aside>
   <p id="empty" class="muted center" hidden>Nothing is on the table yet.</p>
   <footer class="shell-foot"><span>Carrierfile Review Table</span><span>Comments, selects, reference files, carrierfiles and agents stay with the table. Nothing here is public.</span></footer>
 </div>
 <script src="config.js"></script>
-<script src="shared.js?v=20261106cut"></script>
-<script src="cut.js?v=20261106cut"></script>
-<script src="app.js?v=20261106cut"></script>
+<script src="shared.js?v=20261106rate"></script>
+<script src="cut.js?v=20261106rate"></script>
+<script src="app.js?v=20261106rate"></script>
 </body>
 </html>

@@ -1191,10 +1191,105 @@
     } catch (err) { $("ref-grid").replaceChildren(el("p", { class: "error" }, err.message)); return; }
     renderReference(); renderCfSheet();
   }
+  // ---------- reference ratings and file comments (11/6, Nat's ask) ----------
+  // love / maybe / pass on each card (people only; tap your rating again to clear it), each rater's mark beside their
+  // rating, a comment count that opens the file's thread in the side panel, and the grid's filters. The function that is
+  // live today sends no ratings: then (RR.ratingsReady false) none of this shows, and a 404 from /assets/rate hides it too.
+  let rateOff = false, refFilterId = "all";
+  const ratingsOn = () => !rateOff && RR.ratingsReady(refAssets);
+  function renderRefFilters() {
+    const box = $("ref-filters");
+    box.hidden = !ratingsOn();
+    if (box.hidden) { refFilterId = "all"; box.replaceChildren(); return; }
+    box.replaceChildren(...RR.REF_FILTERS.map((f) => el("button", { type: "button", "aria-pressed": String(refFilterId === f.id), onclick: () => { refFilterId = f.id; renderReference(); } }, f.label)));
+  }
+  function ratingRow(a) {
+    const mine = RR.myRating(a);
+    const rate = el("div", { class: "ref-rate", role: "group", "aria-label": `Your rating of ${a.filename}` },
+      RR.RATINGS.map((v) => el("button", { type: "button", "aria-pressed": String(mine === v), title: mine === v ? "tap again to clear" : `rate it ${v}`, onclick: (e) => rateAsset(a, RR.nextRating(mine, v), e.currentTarget) }, RR.RATING_WORDS[v])));
+    const raters = (a.ratings || []).length ? el("div", { class: "ref-raters" }, a.ratings.map((r) =>
+      el("span", { class: "rater " + r.value, title: RR.ratingTitle(r) }, RR.mark(r.color_key || r.name, "person"), `${r.mine ? "you" : r.name}: ${r.value}`))) : null;
+    const talk = el("button", { type: "button", class: "ref-talk", onclick: () => openFilePanel(a) }, a.comments ? `${a.comments} comment${a.comments === 1 ? "" : "s"}` : "comment");
+    return [rate, raters, talk];
+  }
+  async function rateAsset(a, value, btn) {
+    const group = btn && btn.parentNode;
+    if (group) group.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+    try {
+      const r = await api("/assets/rate", { method: "POST", body: { asset_id: a.id, value, name: store.get("name") } });
+      if (r.person_key && state.table) personKey.set(state.table.slug, r.person_key);   // a first rating from this browser made it a person
+      if (r.person_id != null) state.person = r.person_id;
+      a.ratings = r.ratings || [];
+    } catch (err) {
+      // a 404 that isn't about the file: this function has no /assets/rate yet (the live one before the deploy)
+      if (err.status === 404 && !/no such file/i.test((err.data && err.data.error) || "")) rateOff = true;
+      else $("ref-msg").textContent = err.message;
+    }
+    renderReference();
+  }
+  // The side panel: one file's thread. Anyone who sees the file comments and replies (agents too, through the API).
+  let panelAsset = null, panelReplyTo = null;
+  function fileCommentNode(c, kids) {
+    return el("li", { class: c.author_kind === "castle" ? "castle" : c.author_kind === "agent" ? "agent" : "" },
+      el("div", {}, whoNode(c), " ", el("span", { class: "when" }, when(c.created_at))),
+      el("p", { class: "body" }, c.body),
+      c.parent_id ? null : el("button", { type: "button", class: "link small", onclick: () => setFileReply(c) }, "reply"),
+      kids.length ? el("ol", { class: "replies" }, kids.map((k) => fileCommentNode(k, []))) : null);
+  }
+  function setFileReply(c) {
+    panelReplyTo = c;
+    $("file-reply-to").hidden = !c;
+    $("file-reply-to").replaceChildren(...(c ? [`Replying to ${c.name}. `, el("button", { type: "button", class: "link", onclick: () => setFileReply(null) }, "cancel")] : []));
+    if (c) $("file-comment-body").focus();
+  }
+  async function loadFileComments() {
+    const a = panelAsset, list = $("file-comment-list");
+    if (!a) return;
+    try {
+      const { comments } = await api(`/comments?asset_id=${encodeURIComponent(a.id)}`);
+      if (panelAsset !== a) return;
+      a.comments = comments.length;
+      const top = comments.filter((c) => !c.parent_id);
+      list.replaceChildren(...(top.length ? top.map((c) => fileCommentNode(c, comments.filter((k) => k.parent_id === c.id))) : [el("li", { class: "muted" }, "No comments on this file yet.")]));
+    } catch (err) { list.replaceChildren(el("li", { class: "error" }, err.message)); }
+  }
+  function openFilePanel(a) {
+    panelAsset = a; setFileReply(null);
+    $("file-panel-title").textContent = a.filename;
+    $("file-panel-file").replaceChildren(
+      a.url && a.kind === "image" && !/\.(heic|heif|tiff?)$/i.test(a.filename) ? el("img", { src: a.url, alt: a.filename }) : a.url && a.kind === "video" ? el("video", { src: a.url, controls: true, preload: "metadata" }) : null,
+      el("span", {}, `from ${a.name} · ${when(a.created_at)}${a.note ? ` · ${a.note}` : ""}`));
+    $("file-comment-list").replaceChildren(el("li", { class: "muted" }, "Loading…"));
+    $("file-comment-error").textContent = "";
+    $("file-panel").hidden = false;
+    $("file-comment-body").focus();
+    loadFileComments();
+  }
+  function closeFilePanel() { $("file-panel").hidden = true; panelAsset = null; renderReference(); }
+  $("file-panel-close").addEventListener("click", closeFilePanel);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("file-panel").hidden) closeFilePanel(); });
+  $("file-comment-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const a = panelAsset; if (!a) return;
+    const btn = $("file-comment-form").querySelector("button[type=submit]");
+    btn.disabled = true; $("file-comment-error").textContent = "";
+    try {
+      await api("/comments", { method: "POST", body: { asset_id: a.id, name: store.get("name"), body: $("file-comment-body").value, parent_id: panelReplyTo ? panelReplyTo.id : undefined } });
+      $("file-comment-body").value = ""; setFileReply(null);
+      await loadFileComments();
+    } catch (err) { $("file-comment-error").textContent = err.message; }
+    finally { btn.disabled = false; }
+  });
+
   function renderReference() {
     const onlyThis = $("ref-this-item").checked && state.item;
-    const list = onlyThis ? refAssets.filter((a) => (a.draft_slugs || []).includes(state.item.slug)) : refAssets;
-    $("ref-count").textContent = refAssets.length ? `· ${list.length}${onlyThis ? ` of ${refAssets.length}` : ""} file${refAssets.length === 1 ? "" : "s"}` : "· nothing here yet";
+    renderRefFilters();
+    const rated = ratingsOn();
+    const here = onlyThis ? refAssets.filter((a) => (a.draft_slugs || []).includes(state.item.slug)) : refAssets;
+    const list = rated ? RR.refFilter(here, refFilterId) : here;
+    const narrowed = onlyThis || (rated && refFilterId !== "all");
+    $("ref-count").textContent = refAssets.length ? `· ${list.length}${narrowed ? ` of ${refAssets.length}` : ""} file${refAssets.length === 1 ? "" : "s"}` : "· nothing here yet";
+    const emptyWords = rated && refFilterId !== "all" ? "No files match this filter yet." : onlyThis ? "Nothing on this item yet." : "Nothing here yet. Be the first to drop something in.";
     $("ref-grid").replaceChildren(...(list.length ? list.map((a) => el("div", { class: "ref-card", "data-id": a.id },
       assetThumb(a),
       el("div", { class: "meta" },
@@ -1205,10 +1300,11 @@
         a.comment_id ? el("span", {}, "with a comment") : null,
         a.origin === "return" ? el("span", {}, "came back with a carrierfile") : null,
         a.note ? el("span", {}, a.note) : null,
+        rated ? ratingRow(a) : null,
         el("span", { class: "ref-links" },
           a.url ? el("a", { href: downloadUrl(a), rel: "noreferrer" }, "download") : null,
           a.name === store.get("name") ? el("button", { type: "button", class: "link small", onclick: () => removeAsset(a) }, "remove") : null))))
-      : [el("p", { class: "ref-empty" }, onlyThis ? "Nothing on this item yet." : "Nothing here yet. Be the first to drop something in.")]));
+      : [el("p", { class: "ref-empty" }, emptyWords)]));
   }
   $("ref-this-item").addEventListener("change", renderReference);
   async function addReferenceFiles(files) {

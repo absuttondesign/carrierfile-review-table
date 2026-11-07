@@ -464,3 +464,31 @@ select{width:auto;display:inline-block;margin:0 0 0 6px;padding:5px 10px;border-
 .cut-media-foot{display:flex;justify-content:space-between;align-items:center}
 .cut-bad{display:grid;gap:12px;justify-items:center}
 @media (max-width:1050px){.work{grid-template-columns:1fr}.comments{position:static}.thread{max-height:none}.frame iframe{height:80vh}}
+
+/* ---- reference ratings and file comments (11/6): love / maybe / pass on each card, a comment count that opens the
+   file's thread in a side panel, and the grid's filters. All hidden until the function sends ratings. ---- */
+.ref-filters{display:inline-flex;flex-wrap:wrap;gap:6px}
+.ref-filters[hidden]{display:none}
+.ref-filters button{font:12px/1 "Courier Prime",ui-monospace,monospace;text-transform:lowercase;letter-spacing:.04em;color:var(--muted);background:var(--surface);border:1px solid var(--tline);border-radius:999px;padding:6px 10px;cursor:pointer}
+.ref-filters button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.ref-rate{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.ref-rate button{font:12px/1 var(--body);color:var(--fg);background:var(--surface);border:1px solid var(--tline);border-radius:999px;padding:5px 9px;cursor:pointer}
+.ref-rate button:hover{border-color:var(--fg)}
+.ref-rate button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.ref-rate button:disabled{opacity:.55;cursor:wait}
+.ref-raters{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--muted)}
+.ref-raters .rater{display:inline-flex;align-items:center}
+.ref-raters .mark[aria-hidden]{width:18px;height:18px;font-size:8px;margin-right:4px;vertical-align:middle}
+.ref-raters .rater.love{color:var(--fg);font-weight:500}
+.ref-talk{font:12px/1 var(--body);color:var(--accent);background:none;border:0;padding:2px 0;cursor:pointer;text-align:left}
+.ref-talk:hover{text-decoration:underline}
+.file-panel{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);z-index:60;background:var(--surface);color:var(--fg);border-left:1px solid var(--tline);box-shadow:-12px 0 32px rgba(0,0,0,.14);padding:18px 20px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+.file-panel[hidden]{display:none}
+.file-panel-head{display:flex;align-items:baseline;gap:12px}
+.file-panel-head h2{margin:0;font-size:20px;overflow-wrap:anywhere}
+.file-panel-head .link{margin-left:auto}
+.file-panel-file{display:grid;gap:6px;font-size:13px;color:var(--muted)}
+.file-panel-file img,.file-panel-file video{width:100%;max-height:220px;object-fit:contain;background:var(--bg);border-radius:8px}
+.file-panel .thread{max-height:none;flex:1}
+.file-comment-form{display:grid;gap:8px}
+.file-comment-form textarea{width:100%;font:14px/1.4 var(--body);border:1px solid var(--tline);border-radius:10px;padding:8px 10px;background:var(--surface);color:var(--fg);resize:vertical}

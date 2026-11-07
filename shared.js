@@ -6,6 +6,7 @@
 //    with a contrast check for the text on them.
 //  - ago(): "2 min ago" words for last-seen times.
 //  - round 8: the edit icon's state and note, the title menu's entries, the editor's plain-text markdown preview.
+//  - 11/6: reference ratings (love / maybe / pass) and the reference grid's filters.
 // tests-next/shared_test.js runs the pure parts under node.
 (function (root) {
   "use strict";
@@ -190,6 +191,43 @@
     return out;
   }
 
+  // ---- reference ratings (11/6): love / maybe / pass on a reference file, people only ----
+  // ratings: what /assets gives on each file, [{name, value, color_key, mine}]. The same rules as lib.ts on the server.
+  const RATINGS = ["love", "maybe", "pass"];
+  const RATING_WORDS = { love: "love", maybe: "maybe", pass: "pass" };
+  // The function that is live today sends no ratings and no comment counts: the page keeps those controls hidden until
+  // every file it was given carries both (an empty list says nothing either way).
+  function ratingsReady(assets) {
+    const list = Array.isArray(assets) ? assets : [];
+    return list.length > 0 && list.every((a) => a && Array.isArray(a.ratings) && typeof a.comments === "number");
+  }
+  function myRating(a) {
+    const r = ((a && a.ratings) || []).find((x) => x.mine);
+    return r ? r.value : null;
+  }
+  // Tapping your current rating clears it; tapping another one sets that.
+  function nextRating(current, tapped) { return current === tapped ? null : tapped; }
+  // The grid's filters: all, loved_by_all (everyone who has rated any of these files loved this one), loved_by_me,
+  // needs_look (no rating from me yet).
+  const REF_FILTERS = [
+    { id: "all", label: "All" }, { id: "loved_by_all", label: "Loved by everyone" },
+    { id: "loved_by_me", label: "Loved by me" }, { id: "needs_look", label: "Needs a look" },
+  ];
+  function refFilter(assets, filter) {
+    const list = Array.isArray(assets) ? assets : [];
+    const rs = (a) => (a && a.ratings) || [];
+    if (filter === "loved_by_me") return list.filter((a) => rs(a).some((r) => r.mine && r.value === "love"));
+    if (filter === "needs_look") return list.filter((a) => !rs(a).some((r) => r.mine));
+    if (filter === "loved_by_all") {
+      const raters = new Set(list.flatMap((a) => rs(a).map((r) => r.name)));
+      if (!raters.size) return [];
+      return list.filter((a) => [...raters].every((n) => rs(a).some((r) => r.name === n && r.value === "love")));
+    }
+    return list;
+  }
+  // The words under a card's rating buttons: "Natalie loves this · Anna: maybe".
+  function ratingTitle(r) { return r.value === "love" ? `${r.name} loves this` : `${r.name}: ${r.value}`; }
+
   function ago(iso, now) {
     if (!iso) return "not yet";
     const s = Math.max(0, Math.round(((now || Date.now()) - new Date(iso).getTime()) / 1000));
@@ -199,7 +237,8 @@
     return `${Math.round(s / 86400)} d ago`;
   }
 
-  const RR = { PALETTE, colorFor, initials, mark, hereTitle, herePlan, luminance, contrast, textOn, themeTokens, themeName, applyTheme, ago, SWAI, SHARING_WORDS, editIcon, hasChanges, menuPlan, mdBlocks };
+  const RR = { PALETTE, colorFor, initials, mark, hereTitle, herePlan, luminance, contrast, textOn, themeTokens, themeName, applyTheme, ago, SWAI, SHARING_WORDS, editIcon, hasChanges, menuPlan, mdBlocks,
+    RATINGS, RATING_WORDS, ratingsReady, myRating, nextRating, REF_FILTERS, refFilter, ratingTitle };
   root.RR = RR;
   if (typeof module !== "undefined" && module.exports) module.exports = RR;
 })(typeof window !== "undefined" ? window : globalThis);
