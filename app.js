@@ -240,6 +240,7 @@
     const fresh = d.note && (round.summary || "").trim().toLowerCase().replace(/[.\s]+$/, "") !== d.note.trim().toLowerCase().replace(/[.\s]+$/, "");
     $("item-note").textContent = item.agent ? (d.note ? `what changed in v${d.version}: ${d.note}` : "") : fresh && item.versions.length > 1 ? `what changed in v${d.version}: ${d.note}` : "";
     renderTeamLine(item, d);
+    if (isCut(item, d)) { openCut(item, d, false); return; }
     const frame = el("iframe", { id: "frame", title: `${item.round} ${item.part}`, sandbox: "allow-scripts" });
     frame.srcdoc = d.content;
     $("frame-box").replaceChildren(frame);
@@ -335,7 +336,7 @@
   function openMenu(item, chevron) {
     closeMenu(false);
     const menu = el("div", { class: "title-menu", role: "menu", "aria-label": `${item.title} menu` });
-    for (const m of RR.menuPlan(item)) {
+    for (const m of [...RR.menuPlan(item), ...cutMenu(item)]) {
       if (m.separator) { menu.append(el("div", { class: "menu-sep", role: "separator" })); continue; }
       if (m.heading) { menu.append(el("div", { class: "menu-heading", role: "presentation" }, m.heading)); continue; }
       // grayed items stay focusable so the keyboard reaches them and hears why (aria-label), and the mouse sees it (title)
@@ -368,7 +369,9 @@
     titleMsg("");
     try {
       if (id === "history") { await showHistory(item); return; }
+      if (id === "newcut") { await newCut(item); return; }
       if (id === "version") {
+        if (editor && editor.item === item && editor.dirty && !editor.stale) await saveNow(editor);   // the version takes the last change
         const note = prompt("Save a version. A note for the history (what this version is):", "");
         if (note === null) return;
         const r = await api("/items/version", { method: "POST", body: { slug: item.slug, note: note.trim().slice(0, 400), name } });
@@ -406,18 +409,20 @@
   function leaveEditor() {
     const e = editor; if (!e) return;
     editor = null; clearTimeout(e.timer);
+    if (e.close) e.close();               // a Cut stops its player
     if (e.dirty && !e.stale) saveNow(e);   // the last words are not lost when you move on
   }
   function blockNode(b) {
     return b.tag === "ul" ? el("ul", {}, b.items.map((t) => el("li", {}, t))) : el(b.tag, {}, b.text);
   }
-  async function openEditor(item) {
+  async function openEditor(item, opts = {}) {
     closeMenu(false); titleMsg("");
     let d;
     try { d = (await api(`/draft?slug=${encodeURIComponent(item.slug)}`)).draft; }
     catch (err) { titleMsg(err.message); return; }
     if (state.item !== item) return;
     leaveEditor();
+    if (!opts.text && isCut(item, d)) { openCut(item, d, true); return; }   // a Cut edits on its timeline (opts.text: as text)
     const area = el("textarea", { class: "editor-text", "aria-label": `Edit ${item.title}`, spellcheck: "true" });
     area.value = d.content || "";
     const preview = el("div", { class: "editor-preview", "aria-label": "Preview" });
@@ -441,18 +446,441 @@
     clearTimeout(e.timer); e.saving = true; e.dirty = false;
     e.status.textContent = "Saving…";
     try {
-      const r = await api("/items/save", { method: "POST", body: { slug: e.item.slug, content: e.area.value, base_revision: e.base, name: store.get("name") } });
+      const r = await api("/items/save", { method: "POST", body: { slug: e.item.slug, content: e.read ? e.read() : e.area.value, base_revision: e.base, name: store.get("name") } });
       e.base = r.revision;
       e.status.textContent = r.held ? r.next : "Saved";
     } catch (err) {
       if (err.status === 409) {
         e.stale = true;
-        e.status.replaceChildren(`${err.message} Your text stays here to copy. `, el("button", { type: "button", class: "link", onclick: () => { if (editor === e) editor = null; reloadTo(e.item.slug); } }, "Reload"));
+        // a Cut has no text box to copy from: its edit list goes to the clipboard on a click
+        const keep = e.read ? [el("button", { type: "button", class: "link", onclick: (ev) => copyText(e.read(), ev.target, "copied") }, "copy my edit list"), " · "] : [];
+        e.status.replaceChildren(`${err.message} ${e.read ? "Your edit list stays here. " : "Your text stays here to copy. "}`, ...keep, el("button", { type: "button", class: "link", onclick: () => { if (editor === e) editor = null; if (e.close) e.close(); reloadTo(e.item.slug); } }, "Reload"));
       } else { e.dirty = true; e.status.textContent = err.message; }
     } finally {
       e.saving = false;
       if (editor === e && e.dirty && !e.stale) { clearTimeout(e.timer); e.timer = setTimeout(() => saveNow(e), 2000); }
     }
+  }
+
+  // ---------- the Cut: a timeline over the project's reference videos (card cfai-rt-cut-timeline-001, 11/6) ----------
+  // A Cut is a markdown item whose text holds an edit list (site/cut.js reads and writes it). The page plays it with one
+  // <video> that swaps files per clip; nothing is uploaded, re-encoded or exported, and the files are never changed.
+  // Viewing a Cut shows the player and the strip; the pencil opens the same view for editing, saving like the text editor.
+  const Cut = window.Cut;
+  const cutDur = new Map();       // asset id -> seconds, learned from the videos' own metadata
+  const cutSlugs = new Set();     // items seen to be Cuts (by spec, or by their text when a Cut was copied from one)
+  const ASPECTS = ["16:9", "9:16", "1:1", "4:5"];
+  function isCut(item, d) {
+    const yes = !!item && ((item.spec || {}).format === "cut" || !!(d && d.spec && d.spec.format === "cut") || !!(d && d.kind === "markdown" && Cut.isCutText(d.content)));
+    if (yes) cutSlugs.add(item.slug);
+    return yes;
+  }
+  const isCutItem = (item) => !!item && ((item.spec || {}).format === "cut" || cutSlugs.has(item.slug));
+  async function copyText(text, btn, said) {
+    try { await navigator.clipboard.writeText(text); if (btn) btn.textContent = said; } catch (err) { if (btn) btn.textContent = "could not copy"; }
+  }
+  // the title menu's last entry. People make a new Cut from an open one (the page has no route for a brand new item);
+  // the castle makes a project's first with rr.py add --format cut, an agent with POST /agent/drafts and spec format cut.
+  function cutMenu(item) {
+    const cut = isCutItem(item), can = (item && item.can) || {};
+    return [{ separator: true }, {
+      id: "newcut", label: "New cut", enabled: cut && !!can.copy,
+      reason: cut ? "You can't copy this." : "Open a cut first; New cut starts an empty one beside it. A project's first cut comes from Anna or an agent.",
+    }];
+  }
+  async function newCut(item) {
+    const name = store.get("name");
+    const title = (prompt("Name the new cut:", "New cut") || "").trim().slice(0, 160);
+    if (!title) return;
+    const aspect = editor && editor.item === item && editor.doc ? editor.doc.aspect : "16:9";
+    if (editor && editor.item === item && editor.dirty && !editor.stale) await saveNow(editor);
+    const r = await api("/items/copy", { method: "POST", body: { slug: item.slug, name, title } });
+    if (r.person_key) personKey.set(state.table.slug, r.person_key);
+    // the copy starts as the open cut; it is emptied at once, Just me like every new item
+    await api("/items/save", { method: "POST", body: { slug: r.slug, content: Cut.empty(title, aspect), base_revision: r.revision, name } });
+    await reloadTo(r.slug);
+    titleMsg("A new cut, just you. Drag videos in from the tray.");
+    if (state.item && state.item.slug === r.slug) openEditor(state.item);
+  }
+  // the project's video files, with fresh signed links (they expire; the Cut asks again when one fails)
+  async function cutVideos() {
+    const { assets } = await api(`/assets?project=${encodeURIComponent(state.project.slug)}`);
+    refAssets = assets; renderReference();
+    return assets.filter((a) => a.kind === "video");
+  }
+
+  let cutSeq = 0;                 // each openCut call's number: of two views of one item (two versions picked fast), the later wins
+  async function openCut(item, d, editable) {
+    const seq = ++cutSeq;
+    const parsed = Cut.parse(d.content);
+    const box = $("frame-box");
+    if (!parsed.ok) {
+      // never overwrite what we can't read: say so plainly, and let an editor fix the text by hand
+      box.replaceChildren(el("div", { class: "pending cut-bad" },
+        el("p", {}, `This cut's edit list can't be read: ${parsed.error} Nothing has been changed.`),
+        RR.editIcon(item).state === "edit" ? el("button", { type: "button", class: "publish quiet", onclick: () => openEditor(item, { text: true }) }, "Fix it as text") : null));
+      return;
+    }
+    let videos = [], trayErr = "";
+    try { videos = await cutVideos(); } catch (err) { trayErr = err.message; }
+    if (state.item !== item) return;
+    // the view and the editor of one Cut can race (open, then the pencil): editing wins, a view never replaces it
+    if (editor && editor.cut && editor.item === item) { if (editor.editable || (!editable && editor.seq > seq)) return; leaveEditor(); }
+    const project = state.project;
+    const targets = Cut.targets((item.spec || {}).length || ((project.info || {}).spec || {}).length);
+
+    const status = el("p", { class: "editor-status muted small", role: "status", "aria-live": "polite" },
+      !editable ? "Space plays and pauses." :
+      item.sharing === "open" ? "Changes save as you go. Everyone on the table sees them." :
+      item.sharing === "read_only" ? "Changes save as you go, to your working copy. Publish changes when you're ready." :
+      "Changes save as you go. Only you and your agents see them.");
+    const e = { item, base: d.revision || 0, timer: null, saving: false, dirty: false, stale: false, status, cut: true, editable, doc: parsed.doc, sel: null, closed: false, seq };
+    e.read = () => Cut.serialise(e.doc);
+    editor = e;
+    const assetOf = (id) => videos.find((a) => String(a.id) === String(id)) || null;
+    const durOf = (id) => cutDur.get(String(id));
+    const clipName = (c) => c.label || (assetOf(c.asset_id) ? assetOf(c.asset_id).filename : `file ${c.asset_id}`);
+    const changed = () => {
+      if (!editable) return;
+      e.dirty = true; clearTimeout(e.timer);
+      if (!e.stale) e.timer = setTimeout(() => saveNow(e), 2000);
+    };
+
+    // ---- the player: one video, the timeline's time in p.t ----
+    const p = { t: 0, playing: false, index: -1, srcId: null, pendingSeek: null, raf: 0, last: 0, refreshedAt: 0 };
+    const video = el("video", { class: "cut-video", playsinline: true, preload: "auto" });
+    const blank = el("div", { class: "cut-blank" });
+    const screen = el("div", { class: "cut-screen" }, video, blank);
+    const playBtn = el("button", { type: "button", class: "publish cut-play", "aria-label": "Play" }, "Play");
+    const scrub = el("input", { type: "range", class: "cut-scrub", min: "0", max: "0", step: "0.05", value: "0", "aria-label": "Where in the cut" });
+    const timeTxt = el("span", { class: "cut-time" });
+    const totalTxt = el("span", { class: "cut-total muted small" });
+    const setAspect = () => { screen.style.aspectRatio = Cut.aspectCss(e.doc.aspect) || "16 / 9"; };
+    setAspect();
+    const say = (text) => { blank.textContent = text; blank.hidden = !text; };
+
+    function loadSrc(a, time, play) {
+      if (!a || !a.url) {
+        video.pause(); p.srcId = null; p.pendingSeek = null; video.removeAttribute("src"); video.load();
+        return false;
+      }
+      say("");
+      if (p.srcId !== String(a.id)) { p.srcId = String(a.id); p.pendingSeek = time; video.src = a.url; return true; }   // plays after the seek (loadedmetadata)
+      if (video.readyState >= 1) video.currentTime = time; else p.pendingSeek = time;
+      if (play) video.play().catch(() => {}); else video.pause();
+      return true;
+    }
+    // put the player at timeline time t, playing or not
+    function cue(t, play) {
+      const total = Cut.total(e.doc);
+      p.t = Math.max(0, Math.min(t, total));
+      const at = Cut.at(e.doc, p.t);
+      if (!at) { loadSrc(null); say(editable ? "Drag a video in from the tray below, or press add." : "This cut has no clips yet."); paintTime(); return; }
+      p.index = at.index;
+      const c = e.doc.clips[at.index];
+      if (!loadSrc(assetOf(c.asset_id), at.source, play)) say(`Clip ${at.index + 1}: its file isn't in this project's reference files. It plays as black.`);
+      paintTime();
+    }
+    // a frame from one clip (trimming shows the edge it is on)
+    function showFrame(c, time) {
+      pause();
+      loadSrc(assetOf(c.asset_id), time, false);
+    }
+    function next() {
+      const i = p.index + 1;
+      if (i >= e.doc.clips.length) { pause(); p.t = Cut.total(e.doc); paintTime(); return; }
+      cue(Cut.startOf(e.doc, i), true);
+    }
+    function tick(now) {
+      if (!p.playing || e.closed) return;
+      const c = e.doc.clips[p.index];
+      if (!c) { pause(); return; }
+      const start = Cut.startOf(e.doc, p.index);
+      if (p.srcId === null) {                      // a clip with no file: black for its length
+        p.t += (now - p.last) / 1000;
+        if (p.t >= start + Cut.length(c)) next();
+      } else if (p.pendingSeek === null && !video.seeking && video.readyState >= 2) {
+        p.t = start + Math.max(0, video.currentTime - c.in);
+        if (video.currentTime >= c.out - 0.02 || video.ended) next();
+      }
+      p.last = now;
+      paintTime();
+      p.raf = requestAnimationFrame(tick);
+    }
+    function play() {
+      if (!e.doc.clips.length) return;
+      if (p.t >= Cut.total(e.doc) - 0.05) p.t = 0;
+      p.playing = true; p.last = performance.now();
+      cue(p.t, true);
+      cancelAnimationFrame(p.raf); p.raf = requestAnimationFrame(tick);
+      paintPlay();
+    }
+    function pause() {
+      p.playing = false; cancelAnimationFrame(p.raf); video.pause(); paintPlay();
+    }
+    const toggle = () => (p.playing ? pause() : play());
+    function paintPlay() { playBtn.textContent = p.playing ? "Pause" : "Play"; playBtn.setAttribute("aria-label", p.playing ? "Pause" : "Play"); }
+    function paintTime() {
+      const total = Cut.total(e.doc);
+      scrub.max = String(total); scrub.value = String(p.t);
+      timeTxt.textContent = `${Cut.clock(p.t)} / ${Cut.clock(total)}`;
+      playhead.style.left = `${p.t * pps}px`;
+    }
+    video.addEventListener("loadedmetadata", () => {
+      if (p.srcId) noteDur(p.srcId, video.duration);
+      if (p.pendingSeek !== null) { video.currentTime = p.pendingSeek; p.pendingSeek = null; }
+      if (p.playing) video.play().catch(() => {});
+    });
+    // a signed link that expired (403) or failed: ask for fresh links once, then try again from the same place
+    video.addEventListener("error", async () => {
+      if (!p.srcId || e.closed) return;
+      if (Date.now() - p.refreshedAt < 30000) { pause(); say("This video wouldn't load. Reload the page to try again."); return; }
+      p.refreshedAt = Date.now();
+      try { videos = await cutVideos(); } catch (err) { pause(); say(err.message); return; }
+      if (e.closed) return;
+      p.srcId = null;
+      renderStrip(); renderTray();
+      cue(p.t, p.playing);
+    });
+    playBtn.addEventListener("click", toggle);
+    scrub.addEventListener("input", () => { pause(); cue(Number(scrub.value), false); });
+
+    // ---- the strip: one block per clip, width by length, the target lengths as markers ----
+    let pps = 20, trimming = false;
+    const track = el("div", { class: "cut-track", role: "list", "aria-label": "Clips, in order" });
+    const marks = el("div", { class: "cut-marks", "aria-hidden": "true" });
+    const playhead = el("div", { class: "cut-playhead", "aria-hidden": "true" });
+    const dropAt = el("div", { class: "cut-drop", hidden: true, "aria-hidden": "true" });
+    const lane = el("div", { class: "cut-lane" }, marks, track, playhead, dropAt);
+    const strip = el("div", { class: "cut-strip" + (editable ? " is-edit" : "") }, lane);
+    const inspector = el("div", { class: "cut-inspector" });
+
+    function noteDur(id, dur) {
+      if (!(dur > 0 && isFinite(dur))) return;
+      const had = cutDur.get(String(id));
+      cutDur.set(String(id), dur);
+      if (had === dur || !editable || e.closed) return;
+      // a clip made before its file's length was known is clamped to the file now
+      let doc = e.doc;
+      for (const c of doc.clips) if (String(c.asset_id) === String(id) && c.out > dur + 0.001) doc = Cut.trim(doc, c.id, { in: c.in, out: c.out }, dur);
+      if (doc !== e.doc) { e.doc = doc; changed(); renderStrip(); }
+    }
+    function select(id) {
+      e.sel = id;
+      for (const b of track.children) b.classList.toggle("is-sel", b.dataset.id === id);
+      renderInspector();
+    }
+    function clipBlock(c, i) {
+      const a = assetOf(c.asset_id);
+      const len = Cut.length(c);
+      const thumb = a && a.url
+        ? el("video", { class: "cut-thumb", src: `${a.url}#t=${(c.in + 0.05).toFixed(2)}`, preload: "metadata", muted: true, playsinline: true, tabindex: "-1", "aria-hidden": "true", onloadedmetadata: (ev) => noteDur(a.id, ev.target.duration) })
+        : el("span", { class: "cut-missing" }, "no file");
+      const b = el("div", {
+        class: "cut-clip" + (c.id === e.sel ? " is-sel" : "") + (a ? "" : " is-missing"), role: "listitem", tabindex: "0", "data-id": c.id,
+        style: `width:${len * pps}px`, draggable: editable ? "true" : null, title: `${clipName(c)} · ${Cut.clock(c.in)} to ${Cut.clock(c.out)}`,
+        "aria-label": `Clip ${i + 1}: ${clipName(c)}, ${Cut.clock(len)}${c.shot ? `, shot ${c.shot}` : ""}`,
+      }, thumb, el("span", { class: "cut-label" }, c.shot ? el("b", {}, c.shot + " ") : null, clipName(c)), el("span", { class: "cut-len" }, Cut.clock(len)));
+      b.addEventListener("click", () => { select(c.id); pause(); cue(Cut.startOf(e.doc, e.doc.clips.findIndex((x) => x.id === c.id)), false); });
+      b.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); b.click(); } });
+      if (editable) {
+        b.append(edge(c.id, "in", b), edge(c.id, "out", b));
+        b.addEventListener("dragstart", (ev) => {
+          if (trimming) { ev.preventDefault(); return; }
+          ev.dataTransfer.setData("text/x-cut-clip", c.id); ev.dataTransfer.effectAllowed = "move";
+          b.classList.add("is-dragging");
+        });
+        b.addEventListener("dragend", () => { b.classList.remove("is-dragging"); dropAt.hidden = true; });
+      }
+      return b;
+    }
+    // the left or right edge of a block: drag to trim (sets in or out, clamped to the file)
+    function edge(id, which, block) {
+      const h = el("span", { class: "cut-edge " + (which === "in" ? "left" : "right"), title: which === "in" ? "drag to trim the start" : "drag to trim the end", "aria-hidden": "true" });
+      h.addEventListener("pointerdown", (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        const c0 = e.doc.clips.find((c) => c.id === id);
+        if (!c0) return;                     // checked before trimming is set, so a missing clip can't leave drag-to-reorder off
+        trimming = true; h.setPointerCapture(ev.pointerId);
+        const x0 = ev.clientX;
+        select(id);
+        const move = (mv) => {
+          const ds = (mv.clientX - x0) / pps;
+          e.doc = Cut.trim(e.doc, id, which === "in" ? { in: c0.in + ds } : { out: c0.out + ds }, durOf(c0.asset_id));
+          const c = e.doc.clips.find((x) => x.id === id);
+          block.style.width = `${Cut.length(c) * pps}px`;
+          block.querySelector(".cut-len").textContent = Cut.clock(Cut.length(c));
+          showFrame(c, which === "in" ? c.in : Math.max(c.in, c.out - 0.04));
+          paintTotal();
+        };
+        const up = () => {
+          h.removeEventListener("pointermove", move); h.removeEventListener("pointerup", up); h.removeEventListener("pointercancel", up);
+          trimming = false; changed(); renderStrip();
+        };
+        h.addEventListener("pointermove", move); h.addEventListener("pointerup", up); h.addEventListener("pointercancel", up);
+      });
+      h.addEventListener("click", (ev) => ev.stopPropagation());
+      return h;
+    }
+    // where a drop lands: before the first block whose middle is right of the pointer
+    function dropIndex(x) {
+      const blocks = [...track.children];
+      for (let i = 0; i < blocks.length; i++) { const r = blocks[i].getBoundingClientRect(); if (x < r.left + r.width / 2) return i; }
+      return blocks.length;
+    }
+    if (editable) {
+      const kind = (ev) => [...ev.dataTransfer.types].find((t) => t === "text/x-cut-clip" || t === "text/x-cut-asset");
+      lane.addEventListener("dragover", (ev) => {
+        if (!kind(ev)) return;
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = kind(ev) === "text/x-cut-clip" ? "move" : "copy";
+        const i = dropIndex(ev.clientX), blocks = track.children;
+        dropAt.style.left = `${i < blocks.length ? blocks[i].offsetLeft : blocks.length ? blocks[blocks.length - 1].offsetLeft + blocks[blocks.length - 1].offsetWidth : 0}px`;
+        dropAt.hidden = false;
+      });
+      lane.addEventListener("dragleave", (ev) => { if (!lane.contains(ev.relatedTarget)) dropAt.hidden = true; });
+      lane.addEventListener("drop", (ev) => {
+        const k = kind(ev);
+        if (!k) return;
+        ev.preventDefault(); dropAt.hidden = true;
+        const i = dropIndex(ev.clientX);
+        if (k === "text/x-cut-clip") {
+          const from = e.doc.clips.findIndex((c) => c.id === ev.dataTransfer.getData(k));
+          if (from < 0) return;
+          const before = e.doc;
+          e.doc = Cut.reorder(e.doc, from, i > from ? i - 1 : i);
+          if (e.doc === before) return;
+        } else {
+          const a = assetOf(ev.dataTransfer.getData(k));
+          if (!a) return;
+          const r = Cut.add(e.doc, a, durOf(a.id), i);
+          e.doc = r.doc; e.sel = r.id;
+        }
+        changed(); renderStrip(); cue(p.t, false);
+      });
+    }
+    function paintTotal() {
+      const total = Cut.total(e.doc);
+      const words = targets.map((s) => total > s + 0.05 ? `${Cut.clock(s)} target: over by ${Cut.clock(total - s)}` : `${Cut.clock(s)} target: ${Cut.clock(s - total)} to go`);
+      totalTxt.textContent = [`${e.doc.clips.length} clip${e.doc.clips.length === 1 ? "" : "s"}`, `total ${Cut.clock(total)}`, ...words].join(" · ");
+      for (const m of marks.children) m.classList.toggle("is-over", total > Number(m.dataset.s) + 0.05);
+    }
+    function renderStrip() {
+      const total = Cut.total(e.doc);
+      const span = Math.max(total, (targets[0] || 0) * 1.04, 10);
+      pps = Math.max(6, ((strip.clientWidth || 900) - 24) / span);
+      lane.style.width = `${Math.ceil(span * pps) + 12}px`;
+      if (e.sel && !e.doc.clips.some((c) => c.id === e.sel)) e.sel = null;
+      track.replaceChildren(...e.doc.clips.map(clipBlock));
+      marks.replaceChildren(...targets.map((s) => el("div", { class: "cut-mark", "data-s": String(s), style: `left:${s * pps}px` }, el("span", {}, Cut.clock(s).replace(/\.0$/, "")))));
+      if (!e.doc.clips.length) track.append(el("p", { class: "cut-empty muted small" }, editable ? "Drag videos here from the tray, or press add on one." : "No clips yet."));
+      paintTotal(); paintTime(); renderInspector();
+    }
+    function renderInspector() {
+      const i = e.doc.clips.findIndex((c) => c.id === e.sel);
+      if (i < 0) { inspector.replaceChildren(el("span", { class: "muted small" }, e.doc.clips.length ? (editable ? "Click a clip to name it, tag its shot, set exact times, duplicate or delete it. Drag a block to reorder; drag its edges to trim." : "Click a clip to see it.") : "")); return; }
+      const c = e.doc.clips[i];
+      const dur = durOf(c.asset_id);
+      const head = el("b", {}, `Clip ${i + 1} of ${e.doc.clips.length}`);
+      const file = el("span", { class: "muted small" }, `${assetOf(c.asset_id) ? assetOf(c.asset_id).filename : `file ${c.asset_id} (not on this project)`}${dur ? ` · file ${Cut.clock(dur)}` : ""}`);
+      if (!editable) {
+        inspector.replaceChildren(head, " ", el("span", {}, clipName(c)), c.shot ? el("span", { class: "tag" }, c.shot) : null, el("span", { class: "muted small" }, `${Cut.clock(c.in)} to ${Cut.clock(c.out)} · ${Cut.clock(Cut.length(c))}`), file);
+        return;
+      }
+      const field = (label, input) => el("label", { class: "cut-field" }, el("span", { class: "cap" }, label), input);
+      const text = (key, max, ph) => {
+        const inp = el("input", { type: "text", maxlength: String(max), placeholder: ph, value: c[key] || "" });
+        inp.addEventListener("change", () => { e.doc = Cut.setField(e.doc, c.id, key, inp.value); changed(); renderStrip(); });
+        return inp;
+      };
+      const time = (key) => {
+        const inp = el("input", { type: "number", min: "0", step: "0.1", value: String(c[key]) });
+        if (dur) inp.max = String(dur);
+        inp.addEventListener("change", () => {
+          const cur = e.doc.clips.find((x) => x.id === c.id); if (!cur) return;
+          e.doc = Cut.trim(e.doc, c.id, key === "in" ? { in: Number(inp.value), out: cur.out } : { in: cur.in, out: Number(inp.value) }, dur);
+          changed(); renderStrip();
+          const now = e.doc.clips.find((x) => x.id === c.id); if (now) showFrame(now, key === "in" ? now.in : Math.max(now.in, now.out - 0.04));
+        });
+        return inp;
+      };
+      const dup = el("button", { type: "button", class: "cf-btn" }, "Duplicate");
+      dup.addEventListener("click", () => { const r = Cut.duplicate(e.doc, c.id); e.doc = r.doc; e.sel = r.id; changed(); renderStrip(); });
+      const del = el("button", { type: "button", class: "cf-btn cut-del" }, "Delete");
+      del.addEventListener("click", () => removeSel());
+      inspector.replaceChildren(head, file, field("label", text("label", 80, clipName(c))), field("shot", text("shot", 20, "A3")), field("in (s)", time("in")), field("out (s)", time("out")),
+        el("span", { class: "muted small" }, Cut.clock(Cut.length(c))), dup, del);
+    }
+    function removeSel() {
+      if (!editable || !e.sel) return;
+      const i = e.doc.clips.findIndex((c) => c.id === e.sel);
+      e.doc = Cut.remove(e.doc, e.sel);
+      e.sel = e.doc.clips[Math.min(i, e.doc.clips.length - 1)] ? e.doc.clips[Math.min(i, e.doc.clips.length - 1)].id : null;
+      changed(); renderStrip(); cue(Math.min(p.t, Cut.total(e.doc)), false);
+    }
+
+    // ---- the tray: the project's video reference files; drag one onto the strip, or add it at the end ----
+    const tray = el("div", { class: "cut-tray", role: "list", "aria-label": "Video reference files" });
+    function renderTray() {
+      if (!editable) return;
+      if (trayErr) { tray.replaceChildren(el("p", { class: "error small" }, trayErr)); return; }
+      if (!videos.length) { tray.replaceChildren(el("p", { class: "muted small" }, "No video reference files on this project yet. Add some under Reference, below.")); return; }
+      tray.replaceChildren(...videos.map((a) => {
+        const len = el("span", { class: "muted small" }, durOf(a.id) ? Cut.clock(durOf(a.id)) : "");
+        const add = el("button", { type: "button", class: "link small", "aria-label": `Add ${a.filename} to the end` }, "add");
+        add.addEventListener("click", () => {
+          const r = Cut.add(e.doc, a, durOf(a.id));
+          e.doc = r.doc; e.sel = r.id; changed(); renderStrip();
+          cue(Cut.startOf(e.doc, e.doc.clips.length - 1), false);
+        });
+        const m = el("div", { class: "cut-media", role: "listitem", draggable: "true", title: `${a.filename}: drag onto the strip` },
+          a.url ? el("video", { src: `${a.url}#t=0.5`, preload: "metadata", muted: true, playsinline: true, tabindex: "-1", "aria-hidden": "true", onloadedmetadata: (ev) => { noteDur(a.id, ev.target.duration); len.textContent = Cut.clock(ev.target.duration); } }) : el("span", { class: "cut-missing" }, "no link"),
+          el("span", { class: "cut-media-name" }, a.filename), el("span", { class: "cut-media-foot" }, len, add));
+        m.addEventListener("dragstart", (ev) => { ev.dataTransfer.setData("text/x-cut-asset", String(a.id)); ev.dataTransfer.effectAllowed = "copy"; });
+        return m;
+      }));
+    }
+
+    // ---- keys, layout, and leaving ----
+    const onKey = (ev) => {
+      if (e.closed || editor !== e) { document.removeEventListener("keydown", onKey); return; }
+      const t = ev.target, tag = t && t.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (t && t.isContentEditable) || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+      if (ev.key === " " && tag !== "BUTTON" && (t === document.body || box.contains(t))) { ev.preventDefault(); toggle(); }
+      else if ((ev.key === "Delete" || ev.key === "Backspace") && editable && e.sel && t && box.contains(t)) { ev.preventDefault(); removeSel(); }
+    };
+    let resizeT = 0;
+    const onResize = () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (!e.closed && !trimming) renderStrip(); }, 150); };
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onResize);
+    e.close = () => {
+      if (e.closed) return;
+      e.closed = true; p.playing = false; cancelAnimationFrame(p.raf);
+      video.pause(); video.removeAttribute("src"); video.load();
+      document.removeEventListener("keydown", onKey); window.removeEventListener("resize", onResize);
+    };
+
+    const foot = [status];
+    if (editable) {
+      const done = el("button", { type: "button", class: "publish quiet" }, "Done");
+      done.addEventListener("click", async () => { if (e.dirty && !e.stale) await saveNow(e); if (editor === e) editor = null; e.close(); await reloadTo(item.slug); });
+      foot.push(done);
+    } else if (RR.editIcon(item).state === "edit") {
+      foot.push(el("button", { type: "button", class: "publish quiet", onclick: () => openEditor(item) }, "Edit this cut"));
+    }
+    const aspectPick = editable ? el("select", { class: "cut-aspect", "aria-label": "Aspect ratio" }, ...[...new Set([...ASPECTS, e.doc.aspect])].map((x) => el("option", { value: x, selected: x === e.doc.aspect }, x))) : null;
+    if (aspectPick) aspectPick.addEventListener("change", () => { e.doc = { ...e.doc, aspect: aspectPick.value }; setAspect(); changed(); });
+    box.replaceChildren(el("div", { class: "cut" + (editable ? " is-edit" : "") },
+      screen,
+      el("div", { class: "cut-controls" }, playBtn, scrub, timeTxt, aspectPick),
+      el("div", { class: "cut-strip-head" }, el("b", {}, "Timeline"), totalTxt),
+      strip,
+      inspector,
+      editable ? el("div", { class: "cut-strip-head" }, el("b", {}, "Videos"), el("span", { class: "muted small" }, "the project's reference files; a clip plays part of one, the file itself never changes")) : null,
+      editable ? tray : null,
+      el("div", { class: "editor-foot" }, ...foot)));
+    renderTray(); renderStrip(); paintPlay();
+    cue(0, false);
   }
 
   // Version history: versions (number, note, who, when), the last 10 autosaves with Restore, and who changed what.
