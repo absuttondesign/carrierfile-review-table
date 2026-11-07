@@ -181,11 +181,11 @@
       el("summary", {}, `what changed`, el("span", { class: "muted" }, ` · ${changes.length}`)),
       el("ul", { class: "changes" }, changes.map((c) => el("li", {}, c))));
     notes.addEventListener("toggle", () => store.set("notes", notes.open ? "open" : ""));
-    $("round-info").replaceChildren(
+    $("round-info").replaceChildren(...[
       el("div", { class: "meta" }, el("h2", {}, r.name), label ? el("span", { class: "status" }, label) : null),
       r.summary ? el("p", { class: "summary" }, r.summary) : null,
       changes.length ? notes : null,
-    );
+    ].filter(Boolean)); // replaceChildren prints a bare null as the word "null"
     document.querySelector(".work").hidden = false;
     if (!ready) {
       $("parts").replaceChildren(); $("version-wrap").hidden = true;
@@ -312,13 +312,13 @@
     const chevron = el("button", { type: "button", class: "title-chevron", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": `${item.title}: menu` }, "▾");
     chevron.addEventListener("click", () => (menuState ? closeMenu(true) : openMenu(item, chevron)));
     chevron.addEventListener("keydown", (e) => { if (e.key === "ArrowDown" && !menuState) { e.preventDefault(); openMenu(item, chevron); } });
-    box.replaceChildren(
+    box.replaceChildren(...[
       el("h3", { class: "item-name" }, item.title),
       withTip(pencil, icon.note),
       el("span", { class: "menu-wrap" }, chevron),
       el("span", { class: "sharing-word muted small" }, item.sharing_words || RR.SHARING_WORDS[item.sharing] || ""),
       item.sharing === "read_only" ? el("span", { class: "chip welcome" }, "Comments welcome") : null,
-    );
+    ].filter(Boolean)); // no literal "null" when the item isn't read-only
   }
 
   // the title menu: Enter or Space (or Down) on the chevron opens it, arrows move, Escape closes, focus returns
@@ -499,8 +499,8 @@
     // the copy starts as the open cut; it is emptied at once, Just me like every new item
     await api("/items/save", { method: "POST", body: { slug: r.slug, content: Cut.empty(title, aspect), base_revision: r.revision, name } });
     await reloadTo(r.slug);
-    titleMsg("A new cut, just you. Drag videos in from the tray.");
     if (state.item && state.item.slug === r.slug) openEditor(state.item);
+    titleMsg("A new cut, just you. Drag videos in from the tray."); // after openEditor, which clears the title line
   }
   // the project's video files, with fresh signed links (they expire; the Cut asks again when one fails)
   async function cutVideos() {
